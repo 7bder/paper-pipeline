@@ -48,6 +48,17 @@ absent_paths[]（不得存在的路径，字符串数组）：
   用于“旧目录无残留”“正文不得残留标记文件”这类否定式验收。
 
 run（字符串，可选）：额外命令；退出码非 0 即失败。用于跑项目内的自检脚本。
+
+路径解析基准（2026-09-26 审查 N-5：曾把 `--root X --manifest X/子路径` 解析成 X/X/子路径，
+只报 "manifest not found" 不给解析轨迹，难诊断）：
+
+  ROOT          = `--root` 指定值；未指定时 = 本脚本上级目录（项目根）。
+  断言里的 path   = 相对 **ROOT** 解析。
+  `--manifest`   = 绝对路径原样使用；**相对路径也以 ROOT 为基准，不以当前工作目录为基准**。
+                  因此从别处调用时应写 `--manifest 70-tools/71-verify-manifest.json`
+                  （相对目标项目根），或干脆给绝对路径；给了带根名前缀的相对路径不会自动剥离，
+                  未命中时错误消息会同时回显 `--manifest` 原值与最终解析出的绝对路径。
+                  未带 `--manifest` 时按上面的候选顺序在 ROOT 下查找。
 """
 from __future__ import annotations
 
@@ -58,6 +69,13 @@ import pathlib
 import re
 import subprocess
 import sys
+
+# 引擎强制的调用形态是 `python 70-verify.py <task-id>`（生成器锁死该形态，不可能带 -X utf8）。
+# cp936 主机上 FAIL 明细含非 GBK 字符（✅、生僻符号）时 print 会 UnicodeEncodeError →
+# traceback 截断 FAIL 与 --json 输出，rc=1 由崩溃而非断言失败给出（2026-09-26 审查 N-1）。
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MANIFEST_CANDIDATES = ("70-tools/71-verify-manifest.json", "scripts/verify_manifest.json",
@@ -227,7 +245,14 @@ def main() -> int:
 
     mp = resolve_manifest(a.manifest)
     if mp is None or not mp.exists():
-        print("[verify] manifest not found（试过 %s）" % "、".join(MANIFEST_CANDIDATES))
+        if a.manifest:
+            # N-5：只报 "not found" 无法区分「相对谁解析」，故同回原值与解析结果。
+            print("[verify] manifest not found: --manifest %r → %s（相对路径以 --root 为基准；"
+                  "当前 --root=%s；不带 --manifest 时才试候选 %s）"
+                  % (a.manifest, mp, ROOT, "、".join(MANIFEST_CANDIDATES)))
+        else:
+            print("[verify] manifest not found（试过 %s；--root=%s）"
+                  % ("、".join("%s" % (ROOT / c) for c in MANIFEST_CANDIDATES), ROOT))
         return 2
     try:
         # utf-8-sig 同时兼容无 BOM 与带 BOM 两种形态；带 BOM 曾裸 traceback 且 rc=1

@@ -18,10 +18,16 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import pathlib
 import subprocess
 import sys
 import tempfile
+
+# 与 70-verify.py 同一口径（conventions §2）：cp936 主机上打印 ✅/中文明细不得崩溃。
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 HERE = pathlib.Path(__file__).resolve().parent
 VERIFY = HERE / "70-verify.py"
@@ -281,6 +287,88 @@ def run_generator_guards() -> int:
     return 1 if bad else 0
 
 
+def run_encoding_and_path_guards() -> int:
+    """N-1（cp936 下 FAIL 打印崩溃）与 N-5（--manifest 相对路径解析基准）的守卫。
+
+    调用形态刻意用**引擎强制**的那一种：`python 70-verify.py <task>`（不带 -X utf8，
+    生成器 :211 的正则锁死了这个形态），并以 `PYTHONIOENCODING=gbk` + 剥掉 `PYTHONUTF8`
+    模拟纯 cp936 主机——本机设了 PYTHONUTF8=1 会完全掩盖这个 bug。
+    反向对照两层：①同一段 ✅ print 放在不带 reconfigure 的子进程里必须崩（证明环境真的
+    复现了故障条件，守卫不是空转）；②✅ 必须确实不能被 GBK 编码（证明用例有牙）。
+    """
+    env = dict(os.environ, PYTHONIOENCODING="gbk")
+    env.pop("PYTHONUTF8", None)
+    cases: list[tuple[str, bool, str]] = []
+
+    def call(*args) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, str(VERIFY), *args], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", env=env)
+
+    with tempfile.TemporaryDirectory() as td:
+        root = pathlib.Path(td)
+        (root / "70-tools").mkdir(parents=True)
+        (root / "a.md").write_text("nothing here", encoding="utf-8")
+        (root / "70-tools" / "71-verify-manifest.json").write_text(
+            json.dumps({"c-emoji-fail": {"files": [{"path": "a.md",
+                                                   "contains": ["✅ 已完成"]}]}},
+                       ensure_ascii=False), encoding="utf-8")
+        try:
+            "✅".encode("gbk")
+            cases.append(("用例有牙：✅ 不可被 GBK 编码", False, "该字符在 gbk 下可编码，用例失去复现力"))
+        except UnicodeEncodeError:
+            cases.append(("用例有牙：✅ 不可被 GBK 编码", True, ""))
+        old = subprocess.run([sys.executable, "-c",
+                              "print('  - missing marker %r' % '\\u2705 已完成')"],
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", env=env)
+        cases.append(("反向对照：旧行为（无 reconfigure）必崩",
+                      old.returncode != 0 and "UnicodeEncodeError" in (old.stderr or ""),
+                      "rc=%d stderr=%s" % (old.returncode, (old.stderr or "")[-80:])))
+        # N-1 修复后的三条正向断言：rc 语义、明细完整、--json 可整份解析
+        r = call("c-emoji-fail", "--root", str(root))
+        cases.append(("gbk 下 FAIL 退出码 = 1", r.returncode == 1, "rc=%d" % r.returncode))
+        cases.append(("FAIL 明细打全（含 ✅ 原文）",
+                      "missing marker" in r.stdout and "✅ 已完成" in r.stdout,
+                      "stdout 尾部=%r" % r.stdout[-60:]))
+        cases.append(("stderr 无 UnicodeEncodeError",
+                      "UnicodeEncodeError" not in (r.stderr or ""),
+                      (r.stderr or "")[-120:]))
+        rj = call("c-emoji-fail", "--json", "--root", str(root))
+        try:
+            parsed = json.loads(rj.stdout[rj.stdout.index("{"):])
+            got_rc = parsed["results"]["c-emoji-fail"]["rc"]
+            cases.append(("gbk 下 --json 可完整解析", got_rc == 1, "内层 rc=%s" % got_rc))
+        except Exception as exc:                                    # noqa: BLE001
+            cases.append(("gbk 下 --json 可完整解析", False,
+                          "%s：%r" % (type(exc).__name__, (rj.stdout or "")[-80:])))
+        # N-5：相对 --manifest 以 --root 为基准（文档化语义的正/反两面）
+        rel = "70-tools/71-verify-manifest.json"
+        rpos = call("c-emoji-fail", "--root", str(root), "--manifest", rel)
+        cases.append(("相对 --manifest 按 --root 命中",
+                      "manifest not found" not in rpos.stdout and rpos.returncode == 1,
+                      "rc=%d %s" % (rpos.returncode, rpos.stdout[-80:])))
+        wrong = "%s/%s" % (root.name, rel)                           # 带根名前缀的 cwd 视角写法
+        rneg = call("c-emoji-fail", "--root", str(root), "--manifest", wrong)
+        joined = str(root / wrong)
+        cases.append(("二次拼接未命中 → rc=2", rneg.returncode == 2, "rc=%d" % rneg.returncode))
+        cases.append(("未命中消息回显原值+解析后绝对路径+基准",
+                      wrong in rneg.stdout and joined in rneg.stdout
+                      and "--root" in rneg.stdout,
+                      "stdout=%r" % rneg.stdout[-160:]))
+        rschema = call("--schema")
+        cases.append(("--schema 写明解析基准",
+                      "--manifest" in rschema.stdout and "--root" in rschema.stdout,
+                      ""))
+    print("== 编码与 manifest 路径守卫（N-1/N-5）==")
+    bad = 0
+    for name, ok, detail in cases:
+        print("  %-38s %s%s" % (name, "OK" if ok else "MISMATCH",
+                                "" if ok or not detail else "  " + detail))
+        if not ok:
+            bad += 1
+    return 1 if bad else 0
+
+
 def run_parity(project: pathlib.Path) -> int:
     """与项目自带 verify 脚本逐任务比对判定（rc 必须一致）。"""
     script = project / "scripts" / "verify.py"
@@ -317,6 +405,7 @@ def main() -> int:
     rc |= run_manifest_guards()
     rc |= run_rc_semantics_guards()
     rc |= run_generator_guards()
+    rc |= run_encoding_and_path_guards()
     if a.project:
         rc |= run_parity(pathlib.Path(a.project).resolve())
     print("\nSELFTEST %s" % ("PASS" if rc == 0 else "FAIL"))
