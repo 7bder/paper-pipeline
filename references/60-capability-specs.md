@@ -137,7 +137,22 @@ fragments:
   的规则碎片。两个任务向 `static/` 各放一类文件——**碎片（md，被 manifest 索引）** vs **工具词表（yaml，自成一类，
   不被 manifest 索引）**；生成器读到词表即错。
 
-### 3.3 命中与注入算法（`scripts/30-gen-proposals.py`，装配点 `rules_fragment()` 定义于 `:285`、写出 `:376`）
+**强制点（不是描述，是 `load_fragment_manifest()`/`fragment_blocks()` 的判据；违反即 die、rc=2、不落半份生成物）**
+
+| # | 判据 | 违反时的表现（返工前） |
+|---|---|---|
+| F1 | `id` 与 `fragment` 必须是**非空字符串** | `static_dir / frag` 抛 `TypeError` → rc=1 traceback（以崩代拒） |
+| F2 | 索引里全部 `id` 为字符串，"未知 id"消息才允许 `sorted(index)` 构造 | 混入整数 id 时**在报错当场**崩（`sorted()` 混合类型） |
+| F3 | `fragment` 必须是 `static/` 下的**裸文件名**（无 `/`、`\`、盘符、不以 `.` 开头）且以 `.md` 结尾，解析后仍在 `static/` 内 | `../profiles/00-base-empirical.yaml`、绝对路径、子目录、`.txt` 一律静默接受，把**别的文件**当规则注入且零提示 |
+| F4 | 碎片正文必须是合法 UTF-8（读侧 `utf-8-sig`） | GBK 正文 → `UnicodeDecodeError` traceback（rc=1），或乱码进规则片段 |
+| F5 | 碎片正文**不得含** `<!-- fragment:` | 拼接层 marker 与正文 marker 混淆，下游按 marker 计数的一致性判据失真 |
+| F6 | profile `fragments` 列表内**不得重复声明**同一 id，元素必须全是字符串 | 同一片注入两次；非字符串元素在 `fid not in index` 处 `TypeError` |
+| F7 | 诊断消息（含 die 与 warn）中的路径一律经 `_disp()` 只出末两段，不回显条目/声明本体 | 本机绝对路径进出生输出（与 CHANGELOG D-14 同族） |
+
+以上七条由 `75-verify-selftest.py` 的"规则碎片守卫"段逐条把钉（每条含**反向对照**：合法输入必须仍 rc=0/逐字节注入成功，未声明路径不得因新校验产生任何失败面）。
+
+
+### 3.3 命中与注入算法（`scripts/30-gen-proposals.py`，装配点 `rules_fragment()` 定义于 `:431`、写出 `:530`；载荷先算于 `:513`，任何 die 都发生在建目录之前）
 
 1. profile 新增可选顶层键 `fragments: [<id>, ...]`；缺省 = 空。
 2. `fragments` 缺省或为空 → **完全不读 `static/manifest.yaml`**：不产生新失败面，`rules.fragment.md` 与改动前**逐字节一致**（AC2 以 sha256 比对验证）。
@@ -148,6 +163,7 @@ fragments:
    <碎片正文原样全文>
    ```
    marker 独占一行、紧跟正文、碎片之间留一个空行。**不得折叠缩进、不得去空行、不得加前缀**——AC3 的判据是"碎片正文首行原样出现 + marker 行存在"。
+   "原样"是**语义原样**：读侧走 universal newlines、写侧落平台换行，故 CRLF 碎片注入后按 LF 归一，判据不做逐字节等（要逐字节比请先归一换行）。
 5. `axes` 只做一致性提示：与 profile `axes` 同键值不符时打印 warning（含 id 与不符键名），**不改退出码**（自动匹配不是本能力的激活路径，声明即命中）。
 
 ### 3.4 首个碎片内容要求（`static/elsevier-numbered.md`）
@@ -158,6 +174,8 @@ fragments:
 
 三条：未声明零回归（hash 相等）、声明后 marker+首行同时出现、未知 id 退出码非 0 且 stderr/stdout 含该 id。
 其中"未声明零回归"与"未知 id die"属**否定条件**，缺一即视为守卫不成立。
+此外 §3.2 的强制点 F1–F7 各有一条守卫（含"合法输入仍成功"的反向对照，以及一条子进程级判据：
+生成器复制到临时包后再跑，因为 `STATIC_DIR` 由脚本自身 `__file__` 推出，不复制就测不到造的坏索引）。
 注意：`75` 与 `SKILL.md` 均为多任务共享单写者文件，同一时刻只允许一个在途写者。
 
 ### 3.6 建成后的收尾（不在本任务）
