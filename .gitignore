@@ -2,12 +2,13 @@
 __pycache__/
 *.py[cod]
 
-# 生成物沙盒（可由 30-gen-proposals.py 随时重生成）
+# 生成物沙盒：可按需重跑 `scripts/30-gen-proposals.py --profile profiles/<x>.yaml --out <目录>`。
+# 磁盘现状（2026-09-27 实测，字节数为 `stat().st_size` 求和）：`build/` 在盘（28 文件 / 144,783 B）；
+# `build-paper2/` 与 `_pilot/` 已整目录出仓、当前**不在盘**（上一轮 paper2 试点证据随之出仓，需要时重跑试点再生成）。
+# 引擎血统与 vendor 副本：旧引擎副本已出仓，其血统可从 orchd-core 重建（git 仓库，tag v1.5.0 = 32b4192）。
+# 本文件只按目录名/后缀名匹配，**不写任何绝对路径**（换机、换用户名都不必改这里）。
 build/
 build-paper2/
-
-# paper2 试点沙盒：仅证据（65 KB）；4.0 MB 引擎副本已出仓（上游非 git，勿删）。
-# 引擎血统可从 orchestra 工作区的 orchd-core 重建（git 仓库，tag v1.5.0 = 32b4192）。
 _pilot/
 
 # 本机审计档案：审查报告按需落此目录，不入库
