@@ -3,7 +3,8 @@
 # 通用口径（baseline / n 披露 / raw-vs-processed / 坐标轴完整性 / 后页声明）一律继承。
 # 本档相对材料档的三处临床加严（任务卡 AC 的来源）：
 #   1) 效应量与 95% CI 的**页级**核对（不得只报 p 值或"显著/不显著"）；
-#   2) 伦理批件 / 知情同意 / 试验注册号必须显式声明，缺失时以「待确认」行呈现而非静默省略；
+#   2) 伦理批件 / 知情同意 / 试验注册号必须逐行编号登记，并以「待确认项：…」固定收口行
+#      声明有无缺失（三项齐备写「待确认项：无」），不以「不写这行」的方式静默省略；
 #   3) CONSORT（随机试验）/ STROBE（观察性研究）逐条对照，并把该口径注入方法学与结果段落。
 #
 # 与 10-materials-chemistry.yaml 的分工（改本档前先读 scripts/78-assertions-selftest.py 的三条守卫）：
@@ -60,7 +61,7 @@ evidence_policy:
     - "统计方法须写明软件与版本、检验水准、多重比较校正、缺失数据处理与亚组分析是否事前预设"
     - "伦理声明须给出审查委员会名称与批件号；干预性试验给出注册平台与注册号；知情同意给出类型（书面/口头+录音）"
   effect_size_ci: "效应量与 95% CI 的页级核对（page-level）：10-data/11-analysis.md 逐行给 结局、事件数与分母、效应量点估计、95% CI、p 值与**源表号/页码定位**；与源表不一致、缺 CI 或只报 p 值者以 G 编号登记为缺口，不得由 agent 反算补齐"
-  ethics_registration: "伦理批件号、知情同意与试验注册号（ClinicalTrials.gov / ISRCTN / EudraCT）三类声明必须在方法节与后页显式给出；任一项未获取或未核证时，以「待确认 <项目>：<缺什么、需谁提供>」行呈现，不得静默省略、不得凭记忆填写编号"
+  ethics_registration: "伦理批件号、知情同意与试验注册号（ClinicalTrials.gov / ISRCTN / EudraCT）三类声明必须在方法节与后页显式给出；缺失者以「待确认项：<项目>：<缺什么、需谁提供>」行呈现，三项齐备时以「待确认项：无」收口，该收口行不得整句省略；不得凭记忆填写编号"
   # 绘图完整性属"口径"而非"版式"，故放本表而非 figure_policy（inject 只读 evidence_policy）
   plot_integrity: "森林图必须画无效线（RR/OR/HR=1 或 MD=0）；KM 曲线必须给风险人数表或删失标记；亚组图必须标注检验效能不足的区域"
   reporting_standard: "报告规范按 axes.reporting 声明执行：consort（随机对照试验 25 条）与 strobe（观察性研究 22 条）清单逐条对照，每条给 状态（已满足 / 未满足 / 不适用）+ 正文定位（节 + 页或表图号）+ 未满足项的修法；不适用项须写明不适用的设计学理由，不得整片留空"
@@ -186,13 +187,14 @@ verify_assertions_template:
         contains: ["效应量", "95% CI", "页级", "page-level", "敏感性分析"]
         min_matches: { pattern: "^\\|\\s*\\d+", min: 10 }
       - path: 40-figures/40-figure-specs.md
-        contains: ["森林图", "置信区间", "误差棒", "坐标轴"]
+        contains: ["森林图", "置信区间", "无效线", "坐标轴"]
       - path: 10-data/12-table1-baseline.md
         contains: ["基线特征", "缺失值"]
-  - task: task-ethics-registration   # AC「三类声明逐项状态」+「缺失以待确认呈现」
+  - task: task-ethics-registration   # AC「三要素逐行编号登记」+「待确认项收口行恒在（有缺失列条目、无缺失写无）」
     files:
       - path: 00-admin/08-ethics-registration.md
-        contains: ["伦理", "知情同意", "注册号", "待确认"]
+        contains: ["伦理", "知情同意", "注册号", "待确认项"]
+        min_matches: { pattern: "^\\|\\s*\\d+", min: 3 }
   - task: task-outline-contract      # 临床骨架：节名为 Methods 而非 Experimental（材料档断言不适用）
     files:
       - path: 00-admin/02-skeleton.md
@@ -210,7 +212,9 @@ verify_assertions_template:
     files:
       - path: 50-review/53-reporting-checklist.md
         contains: ["CONSORT", "STROBE", "不适用"]
-        min_matches: { pattern: "^\\|\\s*\\d+", min: 15 }
+        # 下限 22 = 两套规范里较小一套的完整条数（STROBE 22 / CONSORT 25）。取 22 而非 47：
+        # 按设计类型只跑一套是正当形态（观察性研究不逐条走 CONSORT 25），但跑的那套必须整表齐。
+        min_matches: { pattern: "^\\|\\s*\\d+", min: 22 }
 
 # 规范依赖图（P0–P6 顺序铁律：数据 → 需求单 → 文献 → 撰写 → 合稿 → 评审）。
 # 临床特有边：伦理与注册核验前置于方法学写作（无批件号则方法节无法定稿）；
@@ -264,10 +268,11 @@ tasks:
     module: mod-data
     stage: P1
     name: 伦理与试验注册声明核验
-    brief: 逐项核对伦理批件、知情同意与试验注册三要素，缺失者显式登记为待确认。
+    brief: 逐行核对伦理批件、知情同意与试验注册三要素，并以固定收口行声明有无待确认项。
     ac:
-      - "`{admin}/08-ethics-registration.md` 逐项登记三要素状态：伦理审查委员会名称与批件号、知情同意类型、注册平台与注册号（ClinicalTrials.gov / ISRCTN / EudraCT），每项状态取 已获取（附编号与来源页）/ 缺失待确认 / 不适用（写明设计学理由）。"
-      - "任一项为缺失时，本文件必须以「待确认 <项目>：需谁提供什么」行显式列出；同一行口径须出现在 `{ms}/sections/32-methods.md` 与 `{ms}/39-back-matter.md` 的对应位置，不得静默省略、不得只写 N/A。"
+      - "`{admin}/08-ethics-registration.md` 以编号表格逐行登记三要素（行号 1 伦理审查委员会名称与批件号、行号 2 知情同意类型、行号 3 注册平台与注册号（ClinicalTrials.gov / ISRCTN / EudraCT）），每行状态取 已获取（附编号与来源页）/ 缺失待确认 / 不适用（写明设计学理由）。"
+      - "本文件末尾必须有「待确认项：」收口行：有缺失者逐条列出（格式 待确认项：<项目>：需谁提供什么），三项均为 已获取 或 不适用 时写「待确认项：无」——该行不得整句省略，缺项以「不写这行」的形式消失即判不合格。"
+      - "缺失项的同一行口径须出现在 `{ms}/sections/32-methods.md` 与 `{ms}/39-back-matter.md` 的对应位置，不得静默省略、不得只写 N/A。"
       - "注册号须给出可回指的登记页来源与检索日期；无法核证者判为缺失待确认，不得凭记忆填写编号。"
       - "观察性研究在注册号不适用时，须写明不适用理由并登记数据平台的访问日期与许可口径。"
     inject: [ethics_registration]
