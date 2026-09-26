@@ -105,8 +105,7 @@ paper-pipeline/
 │   ├── 20-claim-framework.md    claim 需求单 + 证据门限 + 引用落位机检
 │   ├── 30-literature-pipeline.md 定向文献流水线
 │   └── 40-draft-to-latex.md      md 真源 → LaTeX 装配
-├── build/  build-paper2/     开发期生成物快照（paper1/paper2 profile 各跑一遍，可随时重生成）
-├── _pilot/                   paper2 试点证据（引擎登记主档等，非发货内容）
+├── build/                    本机开发期生成物沙盒（`.gitignore` 内，不入库；随时可重生成）
 └── reports/                  本机审计档案（审查报告等，不入库，见 §发布边界）
 ```
 
@@ -146,12 +145,16 @@ paper-pipeline/
 技能发货只需 `SKILL.md` + `profiles/` + `scripts/` + `assets/` + `references/`。
 以下为开发期产物，打包时排除（已在 `.gitignore`）：
 
-| 排除项 | 为什么留仓 | 重建方式 |
+| 排除项 | 本机现状（实测） | 重建方式 |
 |---|---|---|
-| `build/` `build-paper2/` | profile 生成物快照，供 diff | 重跑 `30-gen-proposals.py --out ...` |
-| `_pilot/` | paper2 试点 PASS 的实物证据 | 见其内 README |
-| `reports/` | 本机审计档案（09-26 审查报告等），只在执行机留存 | 见档案内文（不重建） |
-| `__pycache__/` | 无价值 | 已置 `sys.dont_write_bytecode`，不再生成 |
+| `build/` | 存在，28 文件 / 144,783 B（141.4 KiB），未被 git 跟踪 | 重跑 `30-gen-proposals.py --profile profiles/<x>.yaml --out build` |
+| `reports/` | 存在，1 文件 / 19,585 B（09-26 审查报告），未被 git 跟踪 | 不重建：审计档案只在执行机留存，按需重跑审查 |
+
+`.gitignore` 共 10 条声明，按磁盘实测分三类：上表 2 条在本机存在；`_tmp-state.txt`（会话临时态）
+亦存在但未跟踪；其余 7 条当前**磁盘无此类目**——其中 2 条是曾留仓、已随仓库卫生出仓的开发期目录
+（沿革见 `CHANGELOG.md` D-13/D-14/D-16，本节不重复维护），另 5 条为编译与引擎噪声面
+（`__pycache__/`、`*.py[cod]`、`.intake.lock`、`.layout.json`、`.lock`），实测不再生成：跨进程调用一律带
+`-B`，`importlib` 前置 `sys.dont_write_bytecode`；引擎不在无 `.orchd` 的目录以 cwd 运行。
 
 两条已实测的边界纪律：
 1. `--check` 对目标论文项目**零写入**（跑前跑后比对全树 mtime+size 为 0 变化；以 `python -B` 起引擎避免落 `.pyc`）。

@@ -35,12 +35,19 @@ description: >-
 
 | mode | 场景 | 前导阶段 | 人工闸门 |
 |---|---|---|---|
-| `data-first`（默认） | 已有一组数据，凝练故事线 | P1 数据盘点 → P0 故事线收敛 | 用户选定故事线 |
+| `data-first`（默认） | 已有一组数据，凝练故事线 | **执行序** P1 数据盘点 → P0 故事线收敛 | 用户选定故事线 |
 | `idea-first` | 有研究问题，数据还没做 | P0 研究问题 + 数据收集计划 | 用户 confirm 后去做实验 |
 | `multi-paper` | 多组数据，拆成多篇 | **P-1** 资产盘点 + 故事线发现 + 拆分决策 | 用户选定论文组合与优先级 |
 | `inherited` | P-1 已选定，单篇执行 | 跳过故事线发现，直接逐值核对 | 无（方向已定） |
 
 P2 之后四种模式完全汇合：claim 需求单 → 定向文献 → 写作 → 合稿 → 排版。
+
+**P0/P1 为什么在这里是倒着的**（不是与 `10-idea-to-skeleton.md` 冲突）：该文件三段式表里的 P0/P1 是
+**载体编号**——P0 = 苏格拉底式追问收敛出的可研究问题（落 `00-admin/00-plan.md`），P1 = 证据可行性与边界裁定
+（落 `10-data/10-audit.md`），编号标的是产物归属与 idea 条目，不标执行时刻。本表"前导阶段"列写的是**执行序**。
+`data-first` 刻意先做 P1 再做 P0：手里已有数据时，"能支撑什么"要先于"讲哪个故事"，否则故事线会在逐值核对时
+被迫重来——同类代价该文件已有实证（"作者侧事实前置收集"被记为本项目最大延迟来源，10 项待确认里 3 项属此类）。
+`idea-first` 无数据可扫，按编号序正向执行。
 
 ## 阶段序（canonical order，P2 之后不可颠倒）
 
@@ -92,9 +99,12 @@ profile → orchd 原生投喂物。离线、秒级。
 
 ```
 python -X utf8 scripts/30-gen-proposals.py --profile profiles/<x>.yaml --out <输出目录>
-python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --check --project <目标项目>   # 合成 master 并跑 orchd validate（对目标项目零写入）
-python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress <目标项目>            # 与真实项目任务结构对比
+python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --check --project <目标项目>    # 合成 master 并跑 orchd validate（对目标项目零写入）
+python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress --project <目标项目>  # 与真实项目任务结构对比
 ```
+
+`--check` 与 `--regress` 都必须同时给 `--project`：缺项目时无从核对，脚本以**退出码 2**（用法错）拒绝，
+且**先拒后写**——不落任何生成物（旧口径是静默走 `emit` 写出 `--out`（默认 `./build/`）并 rc=0，看起来"跑过了"）。
 
 产出：`proposals/task-<id>.json`、`_master.fragment.json`（项目+模块+任务图）、`rules.fragment.md`、`verify_manifest.fragment.json`。
 支持 `extends` 继承（父档任务列表 + 子档新增/覆盖；同名任务的 `inject` 列表追加合并）；`depends:` 集中声明依赖图；生成期 `emit` 清理陈旧 `task-*.json`（幂等）。

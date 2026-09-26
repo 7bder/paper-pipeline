@@ -28,7 +28,7 @@ docx 的机检性差（难做"引用编号 ↔ 文献表一致""图表覆盖""�
 出版社差异（模板、引用制、图注位置、Highlights / Graphical abstract 有无、字数与图数上限）**不进 SKILL.md、不进脚本**，而是：
 
 `static/publisher/<name>.md`（规则碎片）+ `manifest.yaml` 一行映射 → 由 profile 的 `axes.publisher` 命中。
-（`static/` 与 `manifest.yaml` 均为**待建**，见 SKILL 待建清单第 3 项；建成前跨出版社适配只能靠 profile 覆盖表达。）
+（`static/` 与 `manifest.yaml` 均为**待建**，状态见 `SKILL.md` §能力注册表（可用性以磁盘为准） 一表的"出版社规则碎片"行；建成前跨出版社适配只能靠 profile 覆盖表达。）
 **加一个出版社 = 加一个文件 + 一行 manifest**，不动生成器。
 
 ## 迁移时机

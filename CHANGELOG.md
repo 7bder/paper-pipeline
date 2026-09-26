@@ -158,3 +158,16 @@
   - **附带事实（不阻断）**：引擎**不校验 `files_to_read` 的存在性**——`orchd/split.py:1066` 的存在性告警只覆盖 `files_to_edit` / `exempt_files`；claim 只把 `files_to_read` 当阅读指南透传（`orchd/onboard/claim.py:739`）。故即便路径未修正也不会硬阻断，但声明与磁盘事实会不一致。
 - **附带修复（引擎快照漂移，已实测）**：`.orchd/mod-*/spec.json` 快照落后账本——账本 16 任务、快照仅 12（缺 `task-capability-registry-flip`、`task-verify-manifest-shape-guards`、`task-archive-refs-and-register`、`task-profile-social-science`），且 4 个存量任务的 `files_to_read` 快照版本早于账本（hint 无行号，如 `task-verify-encoding-and-manifest-path` 快照为「N-1 / N-5 的复现条件…」而账本为「L65 N-1（cp936…）」）。因快照是 amend 的 diff 基线，落后会使这批任务被误判为「新增」而触发「新增任务缺 `source`」阻断。已用 `init` 重生成（ledger 为空，`init` 前置守卫放行），实测快照 4/3/5/4 = **16 任务**，与账本对齐。
 - **附带实测（未改）**：`.orchd/_master.json` 中 4 个后加任务无 `source` 字段——`validate` 因「无 source 直接通过（向后兼容存量）」不报错；快照对齐后它们成为存量任务，同样豁免。补 `source` 无 CLI 通道（`amend --task` 不支持 `--source`），暂不处理。
+
+## D-16 根文档漂移修复与 D-13 遗留台账（2026-09-26，task-root-docs-drift-fix）
+
+- **范围**：D-13 §遗留 的**文档面**（N-4 用法块、N-9 两处）与第 4 档留下的发布边界表述。四处改动，行号为改后磁盘态：
+  1. `SKILL.md:101-107` §生成器：`--regress <目标项目>` → `--regress --project <目标项目>`，并补一段「缺 `--project` 归 rc=2 且先拒后写」的口径（产品侧在 `scripts/30-gen-proposals.py:490-493`，守卫在 `scripts/75-verify-selftest.py:291` `run_gen_cli_guards()`）。
+  2. `SKILL.md:38` 行 + `:45-50` §入口模式：data-first 行的 P1→P0 倒序加「**载体编号** vs **执行序**」说明——N-9 复核结论是倒序有意（先扫数据判可行性再收敛故事线），故改说明不改序。
+  3. `references/40-draft-to-latex.md:31`：`见 SKILL 待建清单第 3 项` → 指向 `SKILL.md` §能力注册表 的具体行（悬空序号引用消除）。
+  4. `README.md:108-109` §目录结构 + `:143-157` §发布边界：不再声称已消失对象留仓；表头由「为什么留仓」改为「本机现状（实测）」并逐条给字节数。
+- **实测台账**（本轮现场重做，非记忆）：`_pilot`、`build-paper2` 在 README/SKILL 命中 0；位置参数形态 `--(regress|check) <` 命中 0；`待建清单第` 在 README/SKILL/`40-draft-to-latex.md` 命中 0（本 CHANGELOG 作为历史引述保留 1 处）。`.gitignore` 10 条声明按磁盘分三类：存在 3（`build/` 28 文件 144,783 B、`reports/` 1 文件 19,585 B、`_tmp-state.txt`）、不存在 7（2 条已出仓的开发期目录 + 5 条编译/引擎噪声面）。
+- **测量教训（本轮自犯并已回改）**：`du -sk build` 报 224 KB，字节级实算 141.4 KiB，**虚高 58%**——与既记「Windows 量文件五假信号」同源。凡发布边界一类的数字声明一律改用 `sum(p.stat().st_size)`，不用 `du`。
+- **D-13 §遗留 ①–⑤ 处置台账**（逐项给磁盘证据）：① N-4 → 已修（`30-gen-proposals.py:490-493` 先拒后写 + docstring 同步 + 75 的 21 条守卫；文档面即本条 ①）；② N-1 → 已修（`70-verify.py:97-100` 显式 `reconfigure`，75 带「旧行为（无 reconfigure）必崩」反向对照）；③ N-5 → 已修（`70-verify.py:402` 起未命中消息同回原值 + 解析后绝对路径 + 基准，75 守卫「相对 --manifest 按 --root 命中」「未命中消息回显原值+解析后绝对路径+基准」）；④ N-10 → 已修（`build()` multi-paper 分支校验承载任务）；⑤ N-9 → 本条 ②③ 落地。
+- **编号冲突登记（刻意不改号）**：仓内现有**两条 `## D-15`**（`:117`「09-26 报告全量复核」与 `:146`「本仓纳入 git」），系既有冲突、非本任务引入。不重编号的理由：git 历史 `468fe3c docs: 记录 D-15（本仓入 git）` 已按该号引用，改号会让提交信息与文档永久脱钩——换号的收益小于制造新脱节的代价。消解归 `task-archive-refs-and-register`（其 AC 已含「D-13 §遗留 缺编号」一条）。本条按 D-16 递增，后续勿复用 15。
+- **不扩权项（有主，登记于此）**：① `README.md:139-140` 写死「31 个合成控制用例 + 11 个守卫」——实测前者**仍成立**（`用例 31，期望与实际一致 31`），后者已漂到 **74 条**（六个守卫段 2+5+4+21+10+32，本轮 CLI/P-1 段 +21）；且 §目录结构与「必跑」口径未并列 `78-assertions-selftest.py` → 归 `task-capability-registry-resync`（AC5/AC6，其 `depends_on` 含本任务，串行无红窗口）。② `SKILL.md:151` §能力注册表 的 `:158` 行（文献验真门控）仍 `planned`，而 `scripts/35-refs-gate.py`（82,557 B）已在磁盘 → 归 `task-capability-registry-flip` / `resync`。③ `.gitignore:9-10` 对已出仓试点目录的表述失效 → 归 `task-archive-refs-and-register`。本任务 `files_to_edit` 含 README，但改写死数字正是 resync 的 AC 内容，先改会吞掉它的守卫靶子，故不动。
