@@ -7,10 +7,14 @@
   rules.fragment.md               域口径规则片段（evidence_policy → 可读规则）
   verify_manifest.fragment.json   本域建议的 verify 断言（按任务分组）
 
-用法：
+用法（三条旗标形态与 argparse 一致，改 CLI 必同步此处，守卫见 75-verify-selftest.py）：
   python -X utf8 30-gen-proposals.py --profile profiles/10-materials-chemistry.yaml --out ./build
-  python -X utf8 30-gen-proposals.py --profile ... --check --project <目标项目>   # 生成 master 并跑 orchd validate
-  python -X utf8 30-gen-proposals.py --profile ... --regress <目标项目>           # 与该项目真实任务结构对比
+  python -X utf8 30-gen-proposals.py --profile ... --check --project <目标项目>    # 生成 master 并跑 orchd validate
+  python -X utf8 30-gen-proposals.py --profile ... --regress --project <目标项目>  # 与该项目真实任务结构对比
+
+`--check` 与 `--regress` 都必须同时给 `--project`：二者是"对某个真实项目核对"的动作，缺项目时无从核对。
+曾的做法是 `if a.project:` 把整段跳过 → 缺 `--project` 时 rc=0 静默走 emit 写出 `--out`（默认 `./build/`），
+门禁现场看起来像"跑过了"（2026-09-26 审查 N-4 实测 M6）。现在缺 `--project` 归 rc=2 且先拒后写，不落生成物。
 
 设计约束（全部来自引擎实测，违反即被拒）：
   1. `source` 必须匹配 ^(idea|roadmap|debug):[a-z0-9-]+$ —— 本脚本用 `debug:<profile>-v<version>`；
@@ -237,6 +241,12 @@ def build(profile: dict, project_override: dict | None = None) -> dict:
     if entry_mode != "multi-paper":
         tasks = [t for t in tasks if t["id"] != "task-data-asset-mapping"]
     else:
+        # N-10：P-1 注入只挂在 task-audit-data 上。该任务被领域档删掉时，注入循环静默零命中，
+        # P-1 仍进任务图却无人依赖（生成期 problems 也抓不到——它不依赖任何未知任务），
+        # 注册出去就是一个孤儿前置任务。故在注入点显式校验这条假设。
+        if not any(t["id"] == "task-audit-data" for t in tasks):
+            problems.append("entry.mode=multi-paper 需要 task-audit-data 承载 P-1 注入："
+                            "该任务不在任务图里，task-data-asset-mapping 将成为无人依赖的孤儿前置")
         for t in tasks:
             if t["id"] == "task-audit-data" and "task-data-asset-mapping" not in t["depends_on"]:
                 t["depends_on"].append("task-data-asset-mapping")
@@ -473,6 +483,14 @@ def main() -> int:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--regress", action="store_true")
     a = ap.parse_args()
+
+    # N-4：先拒后写。曾的写法是 `if a.project:` 包住 check/regress —— 缺 --project 时整段跳过，
+    # 前面的 emit 照旧把 26 份生成物写进 --out（默认 ./build/），rc=0。现场看到的是"跑过了"，
+    # 实际一步都没核对（实测 M6）。缺参数归用法错 2，且必须早于任何写盘动作。
+    if (a.check or a.regress) and not a.project:
+        die("--%s 必须同时给 --project <目标项目>（缺失参数 project）："
+            "本脚本没有项目可核对，且不落任何生成物"
+            % ("check" if a.check else "regress"))
 
     profile = load_profile(Path(a.profile))
     built = build(profile)
