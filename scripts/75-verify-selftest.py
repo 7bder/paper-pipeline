@@ -20,6 +20,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -282,6 +283,148 @@ def run_generator_guards() -> int:
     bad = 0
     for name, ok in cases:
         print("  %-44s %s" % (name, "OK" if ok else "MISMATCH"))
+        if not ok:
+            bad += 1
+    return 1 if bad else 0
+
+
+def run_gen_cli_guards() -> int:
+    """N-4（--check/--regress 缺 --project 静默走 emit 落盘）与 N-10（P-1 注入假设）的守卫。
+
+    每类各带一条**锚点**：把旧的口径本身放进子进程跑，证明故障条件真实存在（旧控制流确实
+    rc=0 且落了文件 / 旧注入循环在缺锚任务时静默），否则守卫只是陪着修复变绿的装饰。
+    """
+    cases: list[tuple[str, bool, str]] = []
+    gen = HERE / "30-gen-proposals.py"
+    profiles = HERE.parent / "profiles"
+    mat = profiles / "10-materials-chemistry.yaml"
+    wbpu = profiles / "10-wbpu-kh550.yaml"
+
+    def call(*args, cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen), *args],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(cwd) if cwd else None)
+
+    def snippet(code: str, *argv) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", "-c", code, *argv], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace")
+
+    def emptied(d: pathlib.Path) -> bool:
+        return not d.exists() or not any(d.rglob("*"))
+
+    with tempfile.TemporaryDirectory() as td:
+        base = pathlib.Path(td)
+
+        # ==== 类 1：缺 --project 的口径（N-4）====
+        anchor = snippet(
+            "import pathlib,sys\n"
+            "out = pathlib.Path(sys.argv[1])\n"
+            "(out / 'proposals').mkdir(parents=True)         # 旧口径：emit 无条件先跑\n"
+            "(out / '_master.fragment.json').write_text('{}')\n"
+            "project = ''                                    # 未给 --project\n"
+            "rc = 0\n"
+            "if project:                                     # 旧口径：核对整段被包在这里\n"
+            "    rc |= 1\n"
+            "sys.exit(rc)\n",
+            str(base / "anchor"))
+        files = list((base / "anchor").rglob("*")) if (base / "anchor").exists() else []
+        cases.append(("锚点：旧控制流缺项目仍 rc=0 且落文件",
+                      anchor.returncode == 0 and len(files) >= 2,
+                      "rc=%d files=%d" % (anchor.returncode, len(files))))
+        for flag in ("--check", "--regress"):
+            outdir = base / flag.lstrip("-")
+            r = call("--profile", str(wbpu), flag, "--out", str(outdir))
+            cases.append(("%s 缺 --project → rc=2（非静默 0）" % flag, r.returncode == 2,
+                          "rc=%d %s" % (r.returncode, (r.stdout or r.stderr)[-90:])))
+            cases.append(("%s 的消息点名参数 project" % flag,
+                          "project" in (r.stdout + r.stderr),
+                          "stdout=%r" % (r.stdout or "")[-120:]))
+            left = [x.name for x in outdir.rglob("*")] if outdir.exists() else []
+            cases.append(("%s 缺 --project 不落任何生成物" % flag, not left, "落了 %s" % left))
+        plain = call("--profile", str(wbpu), "--out", str(base / "plain"))
+        cases.append(("纯生成路径仍 rc=0 且落盘（防过度收紧）",
+                      plain.returncode == 0 and not emptied(base / "plain"),
+                      "rc=%d %s" % (plain.returncode, (plain.stdout or plain.stderr)[-90:])))
+        both = call("--profile", str(wbpu), "--check",
+                    "--project", str(base / "noparam"), "--out", str(base / "withproj"))
+        # 这里不要求 rc=0（那个"项目"没有 .orchd/，引擎侧当然会报），只要求**不是**被
+        # 本任务新增的参数守卫拦下——否则等于把正路也堵了。
+        cases.append(("给了 --project 就不被新守卫拦下（不误伤正路）",
+                      "必须同时给" not in (both.stdout + both.stderr),
+                      "rc=%d %s" % (both.returncode, (both.stdout or both.stderr)[-140:])))
+
+        # ==== 类 2：docstring 与 argparse 的旗标口径（N-4 文档面）====
+        h = call("--help")
+        declared = set(re.findall(r"(?<!\w)--[a-z][a-z0-9-]*", h.stdout or ""))
+        doc = gen.read_text(encoding="utf-8").split('"""')[1]
+        usage = [ln.strip() for ln in doc.splitlines()
+                 if ln.strip().startswith("python") and "30-gen-proposals.py" in ln]
+        documented = set()
+        for ln in usage:
+            documented |= set(re.findall(r"--[a-z][a-z0-9-]*", ln))
+        cases.append(("docstring 用法条数 = 3（生成/check/regress）", len(usage) == 3,
+                      "实为 %d：%s" % (len(usage), usage)))
+        cases.append(("docstring 旗标全部为 argparse 实际接受项",
+                      bool(documented) and documented <= declared,
+                      "多出 %s" % sorted(documented - declared)))
+        cases.append(("核对类用法行一律带 --project",
+                      all(("--project" in ln) for ln in usage if "--check" in ln or "--regress" in ln),
+                      "缺 --project 的用法行见上"))
+        pos = re.findall(r"--(?:check|regress)\s+<", doc)
+        cases.append(("位置参数写法 --regress <项目> 命中 0", not pos, "命中 %s" % pos))
+        legacy = call("--profile", str(wbpu), "--regress", str(HERE.parent))
+        cases.append(("锚点：位置参数写法必被 argparse 拒（rc=2）",
+                      legacy.returncode == 2 and "unrecognized" in (legacy.stderr or ""),
+                      "rc=%d %s" % (legacy.returncode, (legacy.stderr or "")[-90:])))
+
+        # ==== 类 3：multi-paper 的 P-1 注入假设（N-10）====
+        anchor = snippet(
+            "tasks = [{'id': 'task-audit-dataX', 'depends_on': []}]\n"
+            "for t in tasks:                                  # 旧口径：只遍历，不校验锚任务在不在\n"
+            "    if t['id'] == 'task-audit-data':\n"
+            "        t['depends_on'].append('task-data-asset-mapping')\n"
+            "print('silent-ok')\n")
+        cases.append(("锚点：旧注入循环缺锚任务时静默无报错",
+                      anchor.returncode == 0 and "silent-ok" in (anchor.stdout or ""),
+                      "rc=%d %s" % (anchor.returncode, (anchor.stderr or "")[-90:])))
+        prof = gen30.load_profile(mat)
+        prof.setdefault("entry", {})["mode"] = "multi-paper"
+        prof["tasks"] = [t for t in prof["tasks"] if t.get("id") != "task-audit-data"]
+        # 把 depends 里对它的引用一并摘掉：否则通用「未知依赖」检查会先报错，
+        # 看不出 P-1 守卫本身有没有生效。
+        prof["depends"] = {k: [d for d in v if d != "task-audit-data"]
+                           for k, v in (prof.get("depends") or {}).items()}
+        built = gen30.build(prof)
+        hit = [p for p in built["problems"] if "task-data-asset-mapping" in p
+               and "task-audit-data" in p]
+        cases.append(("删 task-audit-data 后 multi-paper 生成必报错（含两个任务名）",
+                      bool(hit), "problems=%s" % built["problems"][:2]))
+        cases.append(("报错不靠通用未知依赖检查兜底",
+                      not any("depends_on unknown task" in p for p in built["problems"]),
+                      "见 %s" % built["problems"][:2]))
+        kept = gen30.load_profile(mat)
+        kept.setdefault("entry", {})["mode"] = "multi-paper"
+        bk = gen30.build(kept)
+        ad = [t for t in bk["tasks"] if t["id"] == "task-audit-data"]
+        cases.append(("保留 task-audit-data 时 0 问题且 P-1 有人依赖",
+                      not bk["problems"] and ad
+                      and "task-data-asset-mapping" in ad[0]["depends_on"],
+                      "problems=%s" % bk["problems"][:2]))
+        datafirst = gen30.build(gen30.load_profile(mat))
+        cases.append(("data-first 模式不注册 P-1（默认档不误伤）",
+                      not any(t["id"] == "task-data-asset-mapping" for t in datafirst["tasks"])
+                      and not datafirst["problems"],
+                      "problems=%s" % datafirst["problems"][:2]))
+        for name, path in (("materials", mat), ("wbpu", wbpu)):
+            b = gen30.build(gen30.load_profile(path))
+            cases.append(("%s 档生成期 0 问题（零回归）" % name, not b["problems"],
+                          "problems=%s" % b["problems"][:2]))
+
+    print("== 生成器 CLI 与 P-1 注入守卫（N-4/N-10）==")
+    bad = 0
+    for name, ok, detail in cases:
+        print("  %-44s %s%s" % (name, "OK" if ok else "MISMATCH",
+                                "" if ok or not detail else "  " + detail))
         if not ok:
             bad += 1
     return 1 if bad else 0
@@ -603,6 +746,7 @@ def main() -> int:
     rc |= run_manifest_guards()
     rc |= run_rc_semantics_guards()
     rc |= run_generator_guards()
+    rc |= run_gen_cli_guards()
     rc |= run_encoding_and_path_guards()
     rc |= run_manifest_shape_guards()
     if a.project:
