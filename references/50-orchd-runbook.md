@@ -27,7 +27,7 @@
 4. **判据：引用任何能力前先确认落盘路径存在，可用性以磁盘为准而非注册表记忆。**
    命令：`python -X utf8 -c "import pathlib;print(pathlib.Path('scripts/40-style-check.py').exists())"`（PowerShell 侧等价 `Test-Path`）。
    反例症状：注册表写 `planned` 就假设脚本已建 → 下游 import 崩、或把「脚本不存在」当成「判据通过」。
-   （承接技能根文件 `SKILL.md:151-154` 能力注册表"以磁盘为准"条；注意与引擎协议文件 `.orchd/SKILL.md` 是两个文件。另见 `conventions.md §4` 所引路径必须存在）
+   （承接 技能根文件 `SKILL.md:151-154` 能力注册表"以磁盘为准"条；注意与引擎协议文件 `.orchd/SKILL.md` 是两个文件。另见 `conventions.md §4` 所引路径必须存在）
 
 5. **判据：Windows 五类假信号在测量前逐项排除，否则计数不可信。**
    命令：计数一律显式 `encoding="utf-8-sig"` 读；行尾以 blob 为准 `git show HEAD:<path>`（工作树 CRLF 是 autocrlf 正常态）；临时目录用 Python 的 `tempfile`，不用 shell 的 `/tmp` 字面量；目录体积以 `git ls-files` 清单为准而非 `du`。
@@ -60,7 +60,7 @@
 2. **还原只走 Edit/Write + 哈希校验，不走 git**：注入前先记 `sha256`，还原后再记一次并比对。
    命令：`python -X utf8 -c "import hashlib,pathlib;print(hashlib.sha256(pathlib.Path(r'<文件>').read_bytes()).hexdigest())"`
    反例症状：用 `git checkout -- <文件>` 还原 → 连带抹掉同文件里**本任务尚未提交**的真实改动（红线 1 存在的理由）。
-   （承接红线 1；`conventions.md §5`）
+   （承接 红线 1；`conventions.md §5`）
 
 3. **探针必须自消**：临时目录用 `tempfile`（或 pytest `--basetemp` 指向系统临时目录），探针文件在 `done` 前删除，并用 `status` + `git status --porcelain` 双重确认无残留。
    反例症状：探针样本留在发货面被 `40`/`45` 号扫到，或探针生成的 `.pyc` 内嵌本机绝对路径进发布物。
@@ -143,16 +143,16 @@
 
 5. **单会话自托管确需自审时，在 review comments 首句显式披露自审**，并说明会话指纹与绕过档位。
    反例症状：同会话既实现又审查却不披露，审查结论失去可信度记录。
-   （承接红线 4 自审三档）
+   （承接 红线 4 自审三档）
 
 6. **不得制造空验收**：AC 若写了某文件/某判据，交付里必须能机检到；纯文档任务被补 `verify_command`、或实现任务被清空判据，都要在 CHANGELOG 留决策。
    反例症状：为解除池级阻塞把某任务判据清空 → 该项永远"通过"，等于没做。
-   （承接红线 13 声明文件随分支提交；`conventions.md §3`）
+   （承接 红线 13 声明文件随分支提交；`conventions.md §3`）
 
 ### 显式禁止清单（原文三项不可减，另可增）
 
-- **不要求手动 git 写操作**：本手册所有命令不得出现 `git checkout / reset / stash / clean / branch / merge / push` 作为处置手段；git 写只由引擎执行，唯一豁免 = 任务分支上的 `git commit` 与受管出口 `orchd git merge main`。（承接红线 1、2）
-- **不替用户 intake/claim**：摄入只由用户指定，`request --auto-claim` 默认拒绝；代理不得自行 `intake` 或在无候选时 `claim`。（承接红线 6、7、14）
-- **不替用户 confirm/drop 选题**：`confirm`/`drop` 仅用户可执行，代理只能 `idea propose` 记入 study；灵感类直接写 IDEAS.md 而非自行入池。（承接红线 6、10）
-- **不手改引擎运行时文件与声明真源**：`_ledger.jsonl` / `_checkpoint.json` / `mod-*/spec.json` / `_master.json` 只读，改声明走 `amend`。（承接红线 3、9）
-- **不在任务分支执行 intake/amend**：amend 只在主工作树、工作区干净时做。（承接红线 8）
+- **不要求手动 git 写操作**：本手册所有命令不得出现 `git checkout / reset / stash / clean / branch / merge / push` 作为处置手段；git 写只由引擎执行，唯一豁免 = 任务分支上的 `git commit` 与受管出口 `orchd git merge main`。（承接 红线 1、2）
+- **不替用户 intake/claim**：摄入只由用户指定，`request --auto-claim` 默认拒绝；代理不得自行 `intake` 或在无候选时 `claim`。（承接 红线 6、7、14）
+- **不替用户 confirm/drop 选题**：`confirm`/`drop` 仅用户可执行，代理只能 `idea propose` 记入 study；灵感类直接写 IDEAS.md 而非自行入池。（承接 红线 6、10）
+- **不手改引擎运行时文件与声明真源**：`_ledger.jsonl` / `_checkpoint.json` / `mod-*/spec.json` / `_master.json` 只读，改声明走 `amend`。（承接 红线 3、9）
+- **不在任务分支执行 intake/amend**：amend 只在主工作树、工作区干净时做。（承接 红线 8）
