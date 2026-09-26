@@ -38,3 +38,9 @@
 - id: assertion-token-provenance-guard
 - 论证: 本轮 code 审查手工做过一次全量核对（20 任务全部词项），命中 24 处词项不在本任务 AC 字面内，其中 23 处合法（跨档引用 references/30 的 ref_no/two_source_verified、英文分节名 Materials/Introduction、01-meta.json 键名），1 处为真缺陷（task-citation-audit 的「机制承载」是从 task-lit-fulltext-inventory 借来的分层用语，AC 里没有，已在 88ddf2c 删除）。手工核对不可复用，故值得机器化：给 profile 每条断言加 `token_source:` 标注（本档 AC / references/NN:行 / 英文分节名枚举），由 scripts/78 校验 source 指向的文本确实含该词项；无 source 视为违规。风险：白名单机制本身可能变成新的空转装饰，须配一条反向对照（把 source 指向不含该词的位置，78 必须变红）。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-27 78 号同源比对改全对（pairwise），补回第三档挤掉的 5 个任务覆盖（id: selftest-pairwise-shared-assertions）
+- status: study
+- id: selftest-pairwise-shared-assertions
+- 论证: 实测（2026-09-27，task-profile-clinical 合并后）：scripts/78-assertions-selftest.py:300-309 的「共有任务断言逐字一致」是星形比较——base 取 sorted 首档，只与其余档求交集比对。两档时代交集为 20；新增 10-clinical.yaml 后 sorted 首档变成它，三档交集缩到 15，materials↔wbpu 独有的 5 个共有任务（task-analyze-data / task-ingest-sem-tem-figures / task-skeleton-contract / task-sync-figure-specs-sem-tem / task-write-experimental）不再做逐字比较，属新档落地带来的静默覆盖回退。探针量得三对交集 15/15/20、差异均 0（脚本 C:/tmp/probe_pairs.py）。修法：把 300-309 改为对 names 两两组合各自求交集并比对，打印按配对逐行列，标签「两档」随实际配对数改写；反向对照沿用现套路（删某档某共有任务的实质断言，全对版必须变红）。改动只在 scripts/78-assertions-selftest.py 单文件，不动 profile 与生成器。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
