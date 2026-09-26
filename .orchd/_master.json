@@ -229,10 +229,12 @@
         }
       ],
       "files_to_edit": [
-        "static/manifest.yaml",
-        "static/elsevier-numbered.md",
         "scripts/30-gen-proposals.py",
-        "scripts/75-verify-selftest.py"
+        "scripts/75-verify-selftest.py",
+        "static/elsevier-numbered.md",
+        "static/lab-experimental-reporting.md",
+        "static/manifest.yaml",
+        "static/md-single-source.md"
       ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
