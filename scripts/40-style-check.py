@@ -13,8 +13,11 @@
       规则 1（禁用词）逐行扫全文，只跳过围栏代码块（含围栏标记行）——代码块里是命令与库名，不是文风。
       **标题行与表格行照扫**：AI 腔进标题更该报；§1.4 规则 2 的「跳过纯标题/表格」只界定**段落**，
       不是把这两类行从词表扫描里豁免掉。
-      规则 3（hedging 覆盖）只在段落上判：空行分块；整块纯标题 / 整块纯表格 / 整块在围栏内 → 不算段落、
-      不占段号；其余块的起始行（该块第一行被扫描的内容行）即段起始行号，段号按文档序从 1 起。
+      规则 3（hedging 覆盖）只在段落上判：空行分块，**段内容只取正文行**（`PARAGRAPH_KINDS`）——
+      纯标题块 / 纯表格块 / 围栏块因此自然不成段、不占段号，段起始行即块内首个正文行。
+      方向性理由：标题后不空行、表格紧贴正文都是 md 常态，若把标题行/表格行算进段，
+      ① 报告行号会指到标题（作者还得自己找句子），② **表格单元里的数字**会替整段制造量化信号，
+      把本该直陈的散文判成「缺 hedging」——§1.4 规则 2 要跳过的正是这两类。
 为什么 hedging 只约束含量化信号的段（§1.4 规则 3）：否则等于要求全文冲淡措辞——背景段、方法段本该
       直陈。hedging 是「部分支持 → 收窄措辞」的处置手段（references/20-claim-framework.md §6），
       只有「数字结论」才必须留下收窄痕迹。
@@ -26,6 +29,12 @@
       被路径错误糊成 0；词表本身坏了则无从扫描，直接 2。
       缺键一律 rc=2，不做「当作空表」的宽松处理：键名打错（`category:`、`hedging_terms:`）时宽松等于
       零命中通过，正是 §0 禁止的方向。
+      词表**不是合法 YAML** 同样 rc=2：`yaml.YAMLError` 的 MRO 只有 Exception（实测不继承 ValueError），
+      所以 except 必须显式列它——只捕 (OSError, ValueError) 时坏 YAML 未捕获崩溃、进程退出码 1，
+      等于把「输入坏了」伪装成「你有 AI 腔」。
+      两处**静默免扫**按同一条反伪造方向处置（与「读不了的文件记账报错」同标准，因为本脚本最危险的
+      失败模式是读起来干净）：一个不与 ``` 配对的围栏会让其后至文末整片不参与禁用词扫描 → 记错误行
+      （含起始行号），零命中时 rc=2、有命中时仍 rc=1。
 只读承诺：不写任何目录（本脚本没有 --out，输出只到 stdout / stderr）；读文件严格 UTF-8（utf-8-sig 剥
       BOM），解码失败记为错误而不是跳过——跳过等于替作者把这一篇判成「干净」。
 报告路径：以输入根为基准的相对路径，绝不回显绝对路径（本机路径进报告属发布物污染，CHANGELOG D-14 同族）：
@@ -60,6 +69,7 @@ EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 REQUIRED_KEYS = ("categories", "hedging", "quantitative_signal")
 MATCH_MODES = ("word", "phrase", "substr")
 SCANNED_KINDS = ("heading", "table", "text")
+PARAGRAPH_KINDS = ("text",)
 FENCE_MARKS = ("```", "~~~")
 WORD_CHAR_RE = re.compile("[A-Za-z0-9_]")
 MISSING_TAG = "[missing-hedging]"
@@ -126,7 +136,9 @@ def load_wordlist(path):
     try:
         with open(path, "r", encoding="utf-8-sig") as fh:
             raw = yaml.safe_load(fh)
-    except (OSError, ValueError) as exc:  # yaml.YAMLError 继承 ValueError
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        # 必须显式捕 yaml.YAMLError：实测它的 MRO 是 (YAMLError, Exception) —— **不继承 ValueError**，
+        # 只写 (OSError, ValueError) 时坏 YAML 会未捕获崩溃、进程退出码 1，与「rc=1 = 判据命中」撞车。
         return None, ["词表不是合法 YAML（%s）：%s" % (type(exc).__name__, str(exc)[:120])]
     if not isinstance(raw, dict):
         return None, ["词表顶层须为对象，实际为 %s" % type(raw).__name__]
@@ -210,18 +222,35 @@ def scanned_lines(lines, kinds):
     return [(i, ln) for i, (ln, k) in enumerate(zip(lines, kinds), 1) if k in SCANNED_KINDS]
 
 
+def unclosed_fence(kinds):
+    """返回未闭合围栏的起始行号（1 起），配对了就返回 None。
+
+    围栏标记行成对出现（开→关），所以按出现次序两两相消；剩一个开标记就是「一直到文末都在围栏里」。
+    """
+    start = None
+    for i, k in enumerate(kinds, 1):
+        if k != "fence":
+            continue
+        start = i if start is None else None
+    return start
+
+
 def paragraphs(lines, kinds):
-    """规则 2：空行分块 → [(起始行号, [(行号, 文本)])]。纯标题块 / 纯表格块 / 围栏块不算段落。"""
+    """规则 2：空行分块 → [(起始行号, [(行号, 文本)])]。
+
+    段内容只取 `text` 行（`PARAGRAPH_KINDS`）：标题行与表格行**不算进段**，于是纯标题块 / 纯表格块 /
+    围栏块自然不成段、不占段号，段起始行即块内首个正文行。两点方向性理由：
+      ① 标题与正文之间不空行是 md 常见形态，若把标题行算进段，报告行号会指到标题（作者还得自己找句子）；
+      ② 表格与正文不空行时，若把表格行算进段，**表格单元里的数字**会替整段制造量化信号，
+         把一段本该直陈的散文判成「缺 hedging」——§1.4 规则 2 要跳过的正是这两类。
+    规则 1 的扫描面不受此影响（标题行、表格行照扫禁用词，见 `scanned_lines`）。
+    """
     paras, run = [], []
 
     def flush(run):
-        kept = [(i, ln) for i, ln, k in run if k in SCANNED_KINDS]
-        if not kept:
-            return
-        kinds_kept = set(k for _, _, k in run if k in SCANNED_KINDS)
-        if kinds_kept == set(["heading"]) or kinds_kept == set(["table"]):
-            return
-        paras.append((kept[0][0], kept))
+        kept = [(i, ln) for i, ln, k in run if k in PARAGRAPH_KINDS]
+        if kept:
+            paras.append((kept[0][0], kept))
 
     for i, (ln, k) in enumerate(zip(lines, kinds), 1):
         if k == "blank":
@@ -236,7 +265,7 @@ def paragraphs(lines, kinds):
 # ---------- 扫描 ----------
 
 def scan_file(display, text, wl, matchers, hedging_rxs):
-    """返回 (entries, 段数)。entries = [(display, 行号, 序, 渲染串)]，序 0 = missing-hedging 置顶。"""
+    """返回 (entries, 段数, 未闭合围栏行号|None)。entries = [(display, 行号, 序, 渲染串)]，序 0 = missing-hedging 置顶。"""
     lines = text.splitlines()
     kinds = _line_kinds(lines)
     entries = []
@@ -252,7 +281,7 @@ def scan_file(display, text, wl, matchers, hedging_rxs):
         if any(rx.search(body) for rx in hedging_rxs):
             continue
         entries.append((display, start, 0, "%s para%d@%d" % (MISSING_TAG, idx, start)))
-    return entries, len(paras)
+    return entries, len(paras), unclosed_fence(kinds)
 
 
 def _iter_md(root):
@@ -307,7 +336,12 @@ def run_scan(paths, wl_path):
             # 解码失败计入 rc=2 面，绝不"跳过这一篇"——跳过等于替作者判成干净。
             errors.append("读不了 %s（%s：%s）" % (display, type(exc).__name__, str(exc)[:80]))
             continue
-        got, paras = scan_file(display, text, wl, matchers, h_rxs)
+        got, paras, fence = scan_file(display, text, wl, matchers, h_rxs)
+        if fence is not None:
+            # 与「读不了的文件」同标准：一个不配对的 ``` 会让后文整片免扫，
+            # 静默通过（读起来干净）比报错危险，必须上屏。
+            errors.append("未闭合围栏：%s 第 %d 行的 ``` 直到文末都没配对，其后至文末未参与禁用词扫描"
+                          % (display, fence))
         entries.extend(got)
         para_total += paras
     n_hed = sum(1 for e in entries if e[3].startswith(MISSING_TAG))
@@ -437,6 +471,41 @@ def _st_import_guard(src, third_party):
 NET_STACK = ("urllib", "http", "socket", "requests", "ftplib", "urllib3", "ssl")
 
 
+def _st_yaml_error_caught(src):
+    """load_wordlist 读表的 try 必须捕住 yaml.YAMLError（实测它不继承 ValueError）。"""
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.FunctionDef) or node.name != "load_wordlist":
+            continue
+        for sub in ast.walk(node):
+            if not isinstance(sub, ast.Try):
+                continue
+            for handler in sub.handlers:
+                t = handler.type
+                if isinstance(t, ast.Tuple):
+                    names = [ast.unparse(e) for e in t.elts]
+                elif t is not None:
+                    names = [ast.unparse(t)]
+                else:
+                    names = []
+                if any(n.endswith("YAMLError") for n in names):
+                    return True
+    return False
+
+
+def _st_selfread_by_filename(src):
+    """run_selftest 是否仍按硬编码文件名读自身源码（正确做法是用 __file__）。"""
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.FunctionDef) or node.name != "run_selftest":
+            continue
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Call) and getattr(sub.func, "id", "") == "open":
+                for arg in ast.walk(sub):
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
+                            and arg.value.endswith(".py"):
+                        return True
+    return False
+
+
 def _st_offline_guard(src, banned=NET_STACK):
     """完全离线（AC5）的结构面：本模块不得 import 任何网络栈。"""
     mods = set()
@@ -462,7 +531,7 @@ def run_selftest():
         return [ln for ln in out.splitlines() if ln.startswith(prefix)]
 
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(scripts_dir, "40-style-check.py"), "r", encoding="utf-8-sig") as fh:
+    with open(os.path.abspath(__file__), "r", encoding="utf-8-sig") as fh:
         own_src = fh.read()
     before_listing = sorted(os.listdir(scripts_dir))
     tmp = tempfile.mkdtemp(prefix="sc-selftest-")
@@ -543,9 +612,62 @@ def run_selftest():
               ["d.md:5: [hype] %s" % t_hype])
         check("围栏代码块内不扫词（命令与库名不是文风）",
               [ln for ln in report_lines(out, "d.md:") if ln.startswith("d.md:8")], [])
-        check("跳过块后段号仍从 1 起、起始行号取块内首个内容行",
+        check("跳过块后段号仍从 1 起、起始行号取块内首个正文行",
               report_lines(out, "d.md:11"), ["d.md:11: [missing-hedging] para2@11"])
         check("反向对照：纯标题块不算段落（整份文档只 2 段）", "2 段，命中 2 条" in out, True)
+
+        # ---------- 返工 R-3：段内容只取正文行（标题行与表格行不算进段） ----------
+        h1 = os.path.join(tmp, "head_body.md")
+        _st_write(h1, ["## 3.1 Results", "The cell reached 40 % gain."])
+        rc, out, errb = _st_capture([h1])
+        check("R-3 标题与正文之间不空行时，段起始行取正文行（报告不指到标题）",
+              report_lines(out, "head_body.md:"), ["head_body.md:2: [missing-hedging] para1@2"])
+        h2 = os.path.join(tmp, "head_num.md")
+        _st_write(h2, ["## 3.1 Results at 25 MPa", "No numbers at all in this sentence."])
+        check("R-3 反向对照：标题里的数字不替正文制造量化信号（算进段内容即变红）",
+              _st_capture([h2])[0], EXIT_OK)
+        h3 = os.path.join(tmp, "table_glue.md")
+        _st_write(h3, ["Comparison follows.", "| sample | strength |", "|---|---|", "| A | 25 MPa |"])
+        check("R-3 表格单元里的数字不替散文制造 missing-hedging", _st_capture([h3])[0], EXIT_OK)
+        h4 = os.path.join(tmp, "table_scan.md")
+        _st_write(h4, ["Comparison follows.", "| it is %s |" % t_hype])
+        check("R-3 规则 1 扫描面不变：表格行照扫禁用词",
+              report_lines(_st_capture([h4])[1], "table_scan.md:"),
+              ["table_scan.md:2: [hype] %s" % t_hype])
+
+        # ---------- 返工 R-2：未闭合围栏不得把后文静默免扫 ----------
+        u1 = os.path.join(tmp, "unclosed.md")
+        _st_write(u1, ["clean prose line", "```", "%s inside a fence that never closes" % t_hype])
+        rc, out, errb = _st_capture([u1])
+        check("R-2 未闭合围栏 + 零命中 -> rc=2 并报出免扫的起始行",
+              (rc, "未闭合围栏" in errb and "第 2 行" in errb), (EXIT_USAGE, True))
+        u2 = os.path.join(tmp, "closed.md")
+        _st_write(u2, ["clean prose line", "```", "%s inside a closed fence" % t_hype, "```"])
+        check("R-2 反向对照：补上闭合围栏后同一内容 rc=0", _st_capture([u2])[0], EXIT_OK)
+        u3 = os.path.join(tmp, "unclosed_hit.md")
+        _st_write(u3, ["%s before the fence" % t_hype, "```", "code with no closer"])
+        rc, out, errb = _st_capture([u3])
+        check("R-2 FAIL 优先：未闭合围栏 + 有命中 -> rc=1 且错误行仍上报",
+              (rc, "未闭合围栏" in errb), (EXIT_FAIL, True))
+
+        # ---------- 返工 R-1：非法 YAML 词表必须 rc=2，不得 traceback 直出 ----------
+        by = os.path.join(tmp, "broken.yaml")
+        with open(by, "w", encoding="utf-8") as fh:
+            fh.write("this is not: [valid yaml\n")
+        rc, out, errb = _st_capture(["--wordlist", by, a])
+        check("R-1 非法 YAML 词表 -> rc=2 且报异常名（YAMLError 不继承 ValueError，实测）",
+              (rc, "词表不是合法 YAML" in (out + errb)), (EXIT_USAGE, True))
+        check("R-1 结构面：load_wordlist 的 except 确实含 YAMLError", _st_yaml_error_caught(own_src), True)
+        check("R-1 反向对照：只捕 (OSError, ValueError) 的源码判红",
+              _st_yaml_error_caught("def load_wordlist():\n    try:\n        x = 1\n"
+                                    "    except (OSError, ValueError):\n        x = 2\n"), False)
+
+        # ---------- 返工 R-4：自测读自身源码用 __file__，不依赖文件名 ----------
+        check("R-4 own_src 确实读到本模块（含 run_selftest 定义）", "def run_selftest(" in own_src, True)
+        check("R-4 结构面：run_selftest 不再按硬编码文件名 open", _st_selfread_by_filename(own_src), False)
+        check("R-4 反向对照：按文件名读自身的写法一出现即判红",
+              _st_selfread_by_filename('def run_selftest():\n    with open("40-style-check.py") as fh'
+                                       ":\n        return fh.read()\n"), True)
 
         # ---------- AC3 词条只来自词表（行为面：临时词表） ----------
         coin = "zymurgyx"
