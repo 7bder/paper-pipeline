@@ -30,7 +30,7 @@
 #   · citation_policy.discovery_sources 只准写 `35-refs-gate.py:69` 的 INDICES 四家
 #     （openalex / crossref / semantic_scholar / arxiv）；dblp 等未实现源不得声明（声明即空头能力）。
 #
-# 本档已知、但**不在本任务声明面内**的五处外部约束（2026-09-27 spec 审查两轮登记，待 idea 落地）：
+# 本档已知、但**不在本任务声明面内**的六处外部约束（2026-09-27 spec 审查三轮登记，待 idea 落地）：
 #   1) 数值形态（小数 + ±、同一行多列）写不成 contains_regex/min_matches：78 号的可满足性探针
 #      PROBES（scripts/78-assertions-selftest.py:57-58）没有小数与带符号样本，此类正则一律被拒。
 #      本档因此只能在探针放行的 `\d`、`\|`、`^\|`、`^\|\s*\d+`、`Fig\. ?\d+` 五类形态内设形体下限
@@ -46,6 +46,11 @@
 #      文本 + 人工审查拦这类形态，需要新原语（如 count_distinct / 逐行分列匹配）才能机检。
 #   5) 收口行的行首契约无机检：`^待确认项` 这类以中文为锚点的正则命中不了任何 PROBES（探针样本
 #      全 ASCII），contains 只认子串，故「待确认项」写成表行也过。同样须先给 PROBES 补中文样本。
+#   6) 继承面（与材料档逐字同源、单档改即破 78 号守卫 3）另有四处形态/阈值越权，实测均误杀，
+#      须四档同改：task-citation-audit 的 `^\|\s*\d+`（首列直接放引用号 `[12]` 的合规表命中 0）、
+#      task-write-results-discussion 的 `Fig\.\s*\d+`（ACM 惯例全称 `Figure 1` 被杀，AC 未规定缩写）、
+#      task-assemble-draft 的 `\*\*Fig\. \d+\.\*\*`（按 AC 字面写 `**Fig.1.**` 无空格即被杀）、
+#      task-presubmit-review 的 `CRITICAL|MAJOR|MINOR` ≥10（干净稿问题不足 10 条即被杀，AC 无条数）。
 extends: 00-base-empirical.yaml
 id: cs-ml
 version: "1"
@@ -225,15 +230,22 @@ verify_assertions_template:
   # task-outline-contract 而**掉出交集**，故同样不受同源约束——改它不会打断守卫；反之，落在
   # 交集内的 15 个 id（含 task-select-journal、task-write-results-discussion）单档改断言即破守卫。
   #
-  # 形体下限的设计口径（2026-09-27 spec 审查两轮返工后的实测边界）：`contains` 只证明词元在场，
-  # "token 挤一行 + 无意义编号行"的填充产物上一轮实测 rc=0（M1/M3/M4/B6），故每条表类断言再加
+  # 形体下限的设计口径（2026-09-27 spec 审查三轮返工后的实测边界）：`contains` 只证明词元在场，
+  # "token 挤一行 + 无意义编号行"的填充产物第一轮实测 rc=0（M1/M3/M4/B6），故每条表类断言再加
   # 数字计数与单元格分隔符计数两道下限。**这两道只拦得住"格内零数字的裸填充"**：对抗实测 12 例
-  # 填充中 M-01（词元挤一行 + 纯编号行，digits=15 / pipes=12）与 M-02（八列表头齐、10 行格内全空，
-  # digits=12）确实被 `\d` 与 `\|` 的下限咬死（rc=1）；而把格内换成无意义数字串（digits=371）、
-  # 整列复制同一数值、同一条图号复制四行、620 词凑数这四类即翻转为 rc=0（共 9 例，见档头约束 4）。
-  # 因此下限的定位是"弱下限/形状材料总量校验"，不是填充判据；数值是否逐行独立、是否成对出现，
-  # 全部由 AC 文本判 + 人工审查判。推导写在各行行内注释，取"AC 声明的列数 × 行数"的保守值，
-  # 并已用按 AC 字面手写的合规表格复测不误杀（scripts/70-verify.py:151 的 findall 次数语义）。
+  # 填充中 M-01（词元挤一行 + 纯编号行）与 M-02（表头齐、格内全空）确实被 `\d` 与 `\|` 咬死（rc=1）；
+  # 而把格内换成无意义数字串（digits=371）、整列复制同一数值、同一条图号复制四行、620 词凑数
+  # 即翻转为 rc=0（共 9 例，见档头约束 4）。因此下限定位是"形状材料总量校验"，不是填充判据；
+  # 数值是否逐行独立、是否成对出现，全部由 AC 文本判 + 人工审查判（scripts/70-verify.py:151：
+  # min_matches 数的是 findall 出现次数，不认列、不认行、不认唯一性）。
+  # 阈值的出处纪律（第三轮 MAJOR-1 的教训）：每道下限的数字**必须由该任务 AC 明文写出的条数与
+  # 列数推出**，AC 没写的条数一律不得当成判据——上一版拿自己假设的"10 条 baseline"当真源，
+  # 实测把只有 6 条基线的合规核对表判死（`7 matches of '^\|' < min 10`）。本轮因此把条数写进 AC
+  # （baseline ≥5 条 / 消融行 ≥3 行含基准行 / 主结果 ≥3 指标行 × ≥3 比较列），下限随之重算，
+  # 推导逐行写在注释里。
+  # 表格形态的出处纪律（第三轮 MAJOR-2）：`^\|` 与 `\|` 计数隐含"每行以竖线起头与收尾"的外框
+  # 要求，GFM 允许省略首尾竖线，故该形态必须由 AC 明文规定（三张表的 AC 已各写一句），
+  # 否则就是拿正则偏好当判据（实测 T2#12：省略外框的 09 表 anchored 命中 0 被杀）。
   # anchored 计数的列契约约束：AC 未声明行号列的两张表（11-analysis 七列、14-table 五列）只准用
   # `^\|`（要求"成表的行"），不得用 `^\|\s*\d+`——后者实测会把方法名/配置名开头的合规行整表判死
   # （R-01/R-03：anchored_num=0）；只有 AC 明列行号的 09 表才用 `^\|\s*\d+`。
@@ -244,21 +256,21 @@ verify_assertions_template:
     json_files:
       - path: 00-admin/01-meta.json
         min_items: 5
-        require_keys: ["target_journal", "citation", "word_budget", "figures", "tables"]
+        require_keys: ["title", "target_journal", "citation", "word_budget", "figures", "tables"]   # AC2 的六个字段（标题…图表数）；require_keys 检第 1 个元素应含的键（scripts/70-verify.py:39），min_items 5 = 骨架条目数下限
   - task: task-analyze-baselines     # AC「baseline 七列表头逐行核对（表号+页码）」「逐种子值与 mean ± std」
     files:
       - path: 10-data/11-analysis.md
         contains: ["原文", "页码", "复现", "种子"]
-        min_matches: { pattern: "^\\|", min: 10 }            # AC「逐行给一个 baseline」：≥10 个表格行；AC 未声明行号列，故只锚"行首有竖线"，不锚行首数字
+        min_matches: { pattern: "^\\|", min: 7 }             # AC1「不少于 5 条 baseline、每行以竖线起头收尾」：5 表体 + 表头 + 分隔行 = 7 个以竖线起头的行；AC 未声明行号列，故只锚"行首有竖线"
       - path: 10-data/11-analysis.md
-        min_matches: { pattern: "\\d", min: 60 }            # 10 行 × 每行 ≥6 个数字位（原文值/复现值/std/表号页码）
+        min_matches: { pattern: "\\d", min: 30 }             # AC1 的 5 行 × 每行 ≥6 位（原文值/复现值/std/表号页码）
       - path: 10-data/11-analysis.md
-        min_matches: { pattern: "\\|", min: 80 }            # 10 行 × 每行 ≥8 个分隔（七列表头 + 表头行与分隔行）
+        min_matches: { pattern: "\\|", min: 50 }             # AC1 的 5 行 × 每行 8 个分隔（七列 + 外框）＝40，加表头与分隔行 16 ⇒ 56，取 50 留余量
       - path: 10-data/13-table-main-results.md
         contains: ["均值", "标准差"]
-        min_matches: { pattern: "\\d", min: 30 }            # ≥4 指标行 × 每行 ≥7 个数字位（各方法 mean 与 std 两位小数）
+        min_matches: { pattern: "\\d", min: 20 }             # AC3「≥3 指标行 × ≥3 比较列」＝9 格，每格 mean ± std 至少 2 位数字 ⇒ 18，取 20
       - path: 10-data/13-table-main-results.md
-        min_matches: { pattern: "\\|", min: 20 }            # ≥4 行 × 每行 ≥5 个分隔（≥4 列的比较表）
+        min_matches: { pattern: "\\|", min: 18 }             # AC3 的 3 表体 + 表头 + 分隔 = 5 行 × 每行 4 个分隔（3 列 + 外框）＝20，取 18
       - path: 40-figures/40-figure-specs.md
         contains: ["误差棒", "坐标轴", "缺失"]
         min_matches: { pattern: "Fig\\. ?\\d+", min: 4 }    # AC「不少于四条图规格」：findall 只数出现次数，重复同一图号凑数不可检（档头约束 4）
@@ -266,26 +278,27 @@ verify_assertions_template:
     files:
       - path: 00-admin/09-reproducibility.md
         contains: ["代码", "随机种子", "超参数", "许可", "状态", "定位", "待确认项"]
-        min_matches: { pattern: "^\\|\\s*\\d+", min: 6 }    # AC 明列「行号 1..6」：六要素各行以行号开头（下限=要素数，不缺任何一行）
+        forbid_regex: ["部分满足", "基本满足", "大致满足"]        # AC1 规定状态只能取三态之一；值域外的中间措辞是"把缺项糊过去"的常态写法
+        min_matches: { pattern: "^\\|\\s*\\d+", min: 6 }    # AC1 明列「行号 1..6」与外框形态：六要素各行以竖线起头且紧跟行号（下限=要素数，不缺任何一行）
       - path: 00-admin/09-reproducibility.md
-        min_matches: { pattern: "\\d", min: 30 }            # 6 行 × 每行 ≥5 位：AC 要求「已满足（附取值与来源文件）」，取值列本身含 commit/版本号/种子值，加定位列节号与页码。实测空壳六行（取值列零数字、个位页码）digits=23 被咬，页码改两位数即 27 位——故下限取 30 而非 24，并配合规登记（R-02 实测 digits=60）不误杀
+        min_matches: { pattern: "\\d", min: 24 }            # 只保证全文有 24 个数字位（约等于定位列的节号 + 页码），**不保证取值列有数字**：实测「全部未满足」的诚实登记与谎称已满足的空壳同为 digits=24，计数原语分不开二者（档头约束 4），故不再往上抬——30 曾把零准备阶段的合法登记判死
       - path: 00-admin/09-reproducibility.md
-        min_matches: { pattern: "\\|", min: 30 }            # 6 行 × 每行 ≥5 个分隔（五列表头）+ 表头分隔行
+        min_matches: { pattern: "\\|", min: 30 }            # AC1 的 6 表体 + 表头 + 分隔 = 8 行 × 每行 ≥5 个分隔（五列 + 外框）＝40，取 30
   - task: task-write-implementation  # AC「实现节含 Datasets/Baselines/Implementation/Metrics」
     files:
       - path: 30-manuscript/sections/32-implementation.md
         contains: ["Datasets", "Baselines", "Implementation", "Metrics"]
-        word_count: [600, 3500]
+        word_count: [600, 3500]                             # AC1 明文「正文篇幅 600–3500 词」；词数按空白切分，凑词数不可检（档头约束 4）
         min_matches: { pattern: "\\d", min: 20 }            # AC：数据集规模与版本、超参选定值、GPU-hours 皆须写数字
   - task: task-tabulate-ablations    # AC「消融表五列表头逐行给 配置/指标/mean ± std（均值 ± 标准差）/方向/claim」+「图规格含误差棒与连续图号」
     files:
       - path: 10-data/14-table-ablations.md
         contains: ["消融", "标准差", "claim"]
-        min_matches: { pattern: "^\\|", min: 5 }            # AC「逐行给一个消融配置」：≥5 个表格行；AC 五列里没有行号列，故只锚行首竖线（锚数字会把配置名开头的合规行整表判死）
+        min_matches: { pattern: "^\\|", min: 5 }             # AC1「不少于 3 个消融行（含完整模型基准行）+ 每行以竖线起头收尾」：3 表体 + 表头 + 分隔 = 5；AC 五列里没有行号列，故只锚行首竖线
       - path: 10-data/14-table-ablations.md
-        min_matches: { pattern: "\\d", min: 25 }            # 5 行 × 每行 ≥5 个数字位（mean/std/种子数/claim 号）
+        min_matches: { pattern: "\\d", min: 15 }             # AC1 的 3 行 × 每行 ≥5 位（mean/std 各两位小数 + 种子数或 claim 号）
       - path: 10-data/14-table-ablations.md
-        min_matches: { pattern: "\\|", min: 30 }            # 5 行 × 每行 ≥6 个分隔（五列表头 + 首尾竖线）
+        min_matches: { pattern: "\\|", min: 25 }             # AC1 的 3 表体 + 表头 + 分隔 = 5 行 × 每行 6 个分隔（五列 + 外框）＝30，取 25
       - path: 40-figures/40-figure-specs.md
         contains: ["误差棒", "消融"]
         contains_regex: ["Fig\\.\\s*\\d+"]
@@ -361,9 +374,9 @@ tasks:
     name: baseline 原文核对与多种子方差分析
     brief: 出 baseline 原文报告值与本稿复现值的逐行核对表、多种子方差、主结果表与图表规格。
     ac:
-      - "baseline 原文核对（page-level）：`{data}/11-analysis.md` 以上述七项为表头列（方法名、指标、他方原文报告值、原文表号与页码、本稿复现值、mean ± std、偏差判定），逐行给一个 baseline，每列各占一格；与原文不一致者按 G 编号登记缺口，不得改写原文数值以对齐自家结果。"
+      - "baseline 原文核对（page-level）：`{data}/11-analysis.md` 以上述七项为表头列（方法名、指标、他方原文报告值、原文表号与页码、本稿复现值、mean ± std、偏差判定），逐行给一个 baseline 且不少于 5 条，每列各占一格、每行以竖线起头与收尾；与原文不一致者按 G 编号登记缺口，不得改写原文数值以对齐自家结果。"
       - "`{data}/11-analysis.md` 给出每个指标的多种子聚合口径（均值/中位数、样本标准差）与逐种子值（阿拉伯数字，不得写“若干次运行”），且口径与 `{data}/10-audit.md` 一致。"
-      - "`{data}/13-table-main-results.md` 主结果表每格给 mean ± std（均值 ± 标准差，两位小数）并可回指日志；只报最优一次运行的单元格判为不合格。"
+      - "`{data}/13-table-main-results.md` 主结果表不少于 3 个指标行 × 3 个比较列（本方法 + ≥2 条 baseline），每格给 mean ± std 并可回指日志；本表是中文工作文档，列名与口径逐字写中文 均值 / 标准差（两位小数），每行以竖线起头与收尾；只报最优一次运行的单元格判为不合格。"
       - "`{fig}/40-figure-specs.md` 逐图给类型（曲线/柱状/散点）、坐标轴与单位、误差棒口径、缺失数据不补点的标注方式与图注必写项；条目不少于四条（主比较图、训练曲线、消融图、尺度或效率图），每条以 Fig. <数字> 起头。"
       - "结论不得超出 `{admin}/00-plan.md` 的边界；越界项显式标注为“未测/不主张”。"
     inject: [baseline_provenance, seed_variance, missing_data, forbidden_claims]
@@ -380,7 +393,7 @@ tasks:
     name: 复现声明登记（代码/超参/随机种子）
     brief: 逐行核对可复现六要素并以固定收口行声明有无待确认项。
     ac:
-      - "`{admin}/09-reproducibility.md` 以编号表格逐行登记六要素，表头列为 行号、要素、状态、取值与来源、正文定位（节 + 页或表图号）；六要素即 行号 1 代码来源与 commit、行号 2 运行环境与框架版本、行号 3 超参数搜索空间与选定值、行号 4 随机种子清单、行号 5 数据划分与版本及许可、行号 6 指标实现出处；状态取 已满足（附取值与来源文件）/ 未满足 / 不适用（写明理由）三态之一。"
+      - "`{admin}/09-reproducibility.md` 以编号表格逐行登记六要素，表头列为 行号、要素、状态、取值与来源、正文定位（节 + 页或表图号），每行以竖线起头与收尾；六要素即 行号 1 代码来源与 commit、行号 2 运行环境与框架版本、行号 3 超参数搜索空间与选定值、行号 4 随机种子清单、行号 5 数据划分与版本及许可、行号 6 指标实现出处；状态取 已满足（附取值与来源文件）/ 未满足 / 不适用（写明理由）三态之一。"
       - "本文件末尾必须有「待确认项：」收口行：有缺失者逐条列出（格式 待确认项：<项目>：需谁提供什么），六要素均为 已满足 或 不适用 时写「待确认项：无」——该行不得整句省略，缺项以「不写这行」的形式消失即判不合格。"
       - "随机种子清单必须给出实际使用的种子值与每个种子对应的运行 ID（阿拉伯数字）；只写“固定随机种子”而不给数值者判未满足。"
       - "超参数条目须区分事前设定与搜索所得，并给搜索试验次数；无法核证者判为未满足，不得凭记忆填写。"
@@ -434,7 +447,7 @@ tasks:
     name: 消融表与消融曲线规格
     brief: 逐行出消融表（配置/指标/mean ± std/支撑 claim）与消融图的误差棒规格。
     ac:
-      - "`{data}/14-table-ablations.md` 以上述五项为表头列逐行给 配置、指标、mean ± std（均值 ± 标准差，阿拉伯数字到小数位）、相对完整模型的变化方向、该行支撑的 claim 编号，每列各占一格；每个被主张为贡献的模块至少一行。"
+      - "`{data}/14-table-ablations.md` 以上述五项为表头列逐行给 配置、指标、mean ± std（均值 ± 标准差，阿拉伯数字到小数位）、相对完整模型的变化方向、该行支撑的 claim 编号（列名逐字用小写 claim），每列各占一格、每行以竖线起头与收尾；每个被主张为贡献的模块至少一行，且本表不少于 3 个消融行（含完整模型基准行）。"
       - "消融行的分母必须写明种子数与数据集划分；种子数 <3 的行按 G 编号登记缺口，不得以单次运行充当均值。"
       - "`{fig}/40-figure-specs.md` 的消融曲线/柱状图条目必须给误差棒口径（std 或置信区间）与缺失运行的处理方式；本任务负责的图与主比较图、训练曲线合计不少于四条图规格，每条以 Fig. <数字> 起头且逐条各占一行。"
       - "未做消融的贡献在本文件显式列为缺口，不得只在正文降级措辞。"
@@ -518,7 +531,7 @@ tasks:
     name: 写数据与实现节
     brief: 写 Implementation/Experimental Setup 节：数据集、baseline、实现与指标口径。
     ac:
-      - "`{ms}/sections/32-implementation.md` 含 Datasets / Baselines / Implementation / Metrics 四个子节，其参数与 `{data}/10-audit.md` 口径一致。"
+      - "`{ms}/sections/32-implementation.md` 含 Datasets / Baselines / Implementation / Metrics 四个子节，正文篇幅 600–3500 词（`{admin}/02-skeleton.md` 给本节更小预算时以骨架为准），其参数与 `{data}/10-audit.md` 口径一致。"
       - "每条 baseline 给出原文报告值与出处（表号 + 页码）及实现来源（官方代码/自实现），与 `{data}/11-analysis.md` 的核对表逐字一致。"
       - "数据集给版本、许可、获取日期与划分口径；超参数与算力按 `{admin}/09-reproducibility.md` 的状态逐字落入本节，缺失项以「待确认」行原样呈现，不得改写为已完成、也不得删句。"
       - "该节引用只使用 `{lit}/22-refs.json` 中已验真条目，且与 `{lit}/20-claims-map.md` 的 section 落点一致。"
