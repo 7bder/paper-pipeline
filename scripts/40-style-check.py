@@ -36,8 +36,10 @@
       所以 except 必须显式列它——只捕 (OSError, ValueError) 时坏 YAML 未捕获崩溃、进程退出码 1，
       等于把「输入坏了」伪装成「你有 AI 腔」。
       两处**静默免扫**按同一条反伪造方向处置（与「读不了的文件记账报错」同标准，因为本脚本最危险的
-      失败模式是读起来干净）：一个不与 ``` 配对的围栏会让其后至文末整片不参与禁用词扫描 → 记错误行
-      （含起始行号），零命中时 rc=2、有命中时仍 rc=1。
+      失败模式是读起来干净）：围栏不配对即视为「其后至文末一路在围栏里」→ 记错误行（含开标记行号），
+      零命中时 rc=2、有命中时仍 rc=1。配对判定由 `_line_kinds` 的状态机自报，**不用标记行数奇偶相消**——
+      后者在「缩进 ≤3 之外的 ``` 被当闭合符」或「~~~ 与 ``` 跨种互关」时算成偶数，状态错位却不报错，
+      实测会把带禁用词的真散文整行吞掉（rc=0、零报告）。闭合只认同种标记、且缩进 ≤3。
 只读承诺：不写任何目录（本脚本没有 --out，输出只到 stdout / stderr）；读文件严格 UTF-8（utf-8-sig 剥
       BOM），解码失败记为错误而不是跳过——跳过等于替作者把这一篇判成「干净」。
 报告路径：以输入根为基准的相对路径，绝不回显绝对路径（本机路径进报告属发布物污染，CHANGELOG D-14 同族）：
@@ -48,6 +50,9 @@
 自测口径：--selftest 全离线（本模块不 import 任何网络栈，由 _st_offline_guard 结构面证明），样本与
       临时词表写在临时目录、用毕即删；不起子进程（进程内直调 main()），故 -B 面不在本脚本；
       sys.dont_write_bytecode 早于第三方 import 置位（由 _st_import_guard 证明，.pyc 内嵌本机路径）。
+      缺省词表读不出来时（脚本被单拷到没有兄弟 static/ 的目录、或词表本身坏了）先打 ABORT 行再返 2：
+      余下用例全要索引 wl，不中止会在 `wl["categories"]` 上抛 TypeError，traceback 直出 + 进程退出码 1，
+      与 D-1 同族地「把环境坏了伪装成判据命中」；该中止路径由 _st_wordlist_abort 的结构面守住。
 """
 
 import argparse
@@ -518,6 +523,29 @@ def _st_offline_guard(src, banned=NET_STACK):
     return sorted(m for m in mods if m in banned)
 
 
+def _st_wordlist_abort(src):
+    """run_selftest 必须在索引 wl 之前先中止「缺省词表读不出来」这条路径。
+
+    无守卫时 wl 为 None，wl["categories"] 抛 TypeError —— traceback 直出、进程 rc=1，
+    把「环境坏了」伪装成「判据命中」。判据：守卫 If（含 return）的行号早于首个 wl[...] 索引。
+    """
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.FunctionDef) or node.name != "run_selftest":
+            continue
+        guard, index = None, None
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.If):
+                test = ast.unparse(sub.test)
+                if "wl" in test and ("is None" in test or test.startswith("not wl")):
+                    if any(isinstance(x, ast.Return) for x in ast.walk(sub)):
+                        guard = sub.lineno if guard is None else min(guard, sub.lineno)
+            if isinstance(sub, ast.Subscript) and isinstance(sub.value, ast.Name) \
+                    and sub.value.id == "wl":
+                index = sub.lineno if index is None else min(index, sub.lineno)
+        return guard is not None and index is not None and guard < index
+    return False
+
+
 def run_selftest():
     fails = []
 
@@ -541,6 +569,11 @@ def run_selftest():
         # ---------- 缺省词表（§1.3 键即契约） ----------
         wl, errs = load_wordlist(DEFAULT_WORDLIST)
         check("缺省词表可读（static/40-ai-cavity-wordlist.yaml）", errs, [])
+        if wl is None:
+            # 余下用例全都要索引 wl，不先中止会抛 TypeError：traceback 直出 + rc=1，
+            # 把「环境坏了」伪装成「判据命中」。中止记号用两空格前缀，与 OK/FAIL 同级可读。
+            print("  ABORT 缺省词表不可读，词表相关用例未执行")
+            return EXIT_USAGE
         check("缺省词表类别与 §1.3 一致", [c["id"] for c in wl["categories"]],
               ["hype", "cavity", "vague_attribution"])
         check("缺省词表每类都显式给了 match", [c["match"] for c in wl["categories"]],
@@ -684,6 +717,17 @@ def run_selftest():
         check("R-4 反向对照：按文件名读自身的写法一出现即判红",
               _st_selfread_by_filename('def run_selftest():\n    with open("40-style-check.py") as fh'
                                        ":\n        return fh.read()\n"), True)
+
+        # ---------- 返工 R-6：缺省词表不可读时先中止，不得索引 None 抛 TypeError ----------
+        check("R-6 结构面：run_selftest 在首个 wl[...] 索引之前有 wl is None 的 return 守卫",
+              _st_wordlist_abort(own_src), True)
+        check("R-6 反向对照：无守卫（直接索引 wl）的源码判红",
+              _st_wordlist_abort('def run_selftest():\n    wl = load()\n'
+                                 '    print(wl["categories"])\n'), False)
+        check("R-6 反向对照：守卫排在索引之后仍判红",
+              _st_wordlist_abort('def run_selftest():\n    wl = load()\n'
+                                 '    print(wl["categories"])\n'
+                                 '    if wl is None:\n        return 2\n'), False)
 
         # ---------- AC3 词条只来自词表（行为面：临时词表） ----------
         coin = "zymurgyx"
