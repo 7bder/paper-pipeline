@@ -50,3 +50,9 @@
 - id: ac-path-declaration-guard
 - 论证: 背景：task-profile-clinical 的 code 审查实测出一类会静默失效的声明缺口——AC 规定「与某文件不一致即判 CRITICAL」「按某文件的口径上收」，但该文件不在同任务的 files_to_read 里，agent 按声明读取面工作时根本拿不到比对对象。已修的那两处是 profiles/10-clinical.yaml:573/576（presubmit-review）与 :589/591（finalize-manuscript）。探针实测同类缺口三档共有：clinical 余 7 处、10-materials-chemistry.yaml 3 处（task-analyze-data 引 10-audit.md、task-claim-map 引 02-skeleton.md、task-assemble-draft 引 01-meta.json）、10-wbpu-kh550.yaml 6 处。关键设计点：必须先区分两类引用再上守卫，否则会把正当形态全判红——(a) 比对对象/口径来源（该任务要读它做判断）应要求 ∈ read∪edit；(b) 下游落点（「同一行口径须出现在 32-methods.md」）与交回上游（「数值变更须回到 11-analysis.md」）是指针性交叉引用，不该要求声明。可行的判据口径：按 AC 句子的谓语形态识别（含「与…不一致」「按…的口径」「以…为准」「核对」等判定动词者归 (a)），或退一步只对「同一任务 edit 之外且被 AC 带路径引用、同时该任务 depends_on 里也没有产出该文件的任务」这种无源引用判失败。落点建议放 scripts/78-assertions-selftest.py 新守卫段（与形状守卫同族），反向对照用「把已声明的 read 项删掉必须变红」+「正当交叉引用不得变红」两条。探针脚本可复用 C:/tmp/probe_ac_paths.py 的解析口径。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-27 能力注册表需补 exists→listed 方向（磁盘有的 profile 必须被列出）（id: registry-existence-listed-direction）
+- status: study
+- id: registry-existence-listed-direction
+- 论证: 背景：task-profile-clinical 合并后，profiles/ 下已有 00-base-empirical / 10-clinical / 10-materials-chemistry / 10-wbpu-kh550 四个 yaml，但 SKILL.md:121-122 的领域档表与 README.md:95-96 的目录树只列了材料与 wbpu 两档——新档对使用者不可见。pending 的 task-capability-registry-resync 声明了 SKILL.md/README.md/scripts/75-verify-selftest.py 三个文件，但它的 6 条 AC 全是「列出的路径必须存在」（listed→exists）方向，没有「存在的能力必须被列出」（exists→listed）方向，因此不会自动带上本项。落点建议：resync 的守卫按 PROFILES.glob('*.yaml') 取磁盘真源（与 scripts/78-assertions-selftest.py:71-75 的 domain_profiles() 同口径，注意排除 00- 基类），逐档断言其在 SKILL.md 表行与 README.md 目录树各出现一次，并核对其行内宣称的任务数等于生成器实测 tasks= 值（现 materials 24 / wbpu 26 / clinical 22，全部由 scripts/30-gen-proposals.py 输出首行可取）；反向对照两条——删一行必须变红、把行数写错必须变红。本项可在做 resync 时作为新增 AC 并入，无需另开文件；若并入则同时更新该任务卡的验收口径。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
