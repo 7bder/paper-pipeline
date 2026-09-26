@@ -1,0 +1,76 @@
+# 域档：硅烷杂化水性聚氨酯防腐涂层（Paper 2 试点）
+# 与 10-materials-chemistry 同域**不同证据形态**：数据为 Origin .opju 工程（可能混含 Ch3/Ch4），且本稿**有 EIS**。
+# 因此：新增"数据分离导出"任务；把"禁止阻抗类结论"换成"阻抗结论必须有等效电路拟合依据"；加入与兄弟论文的边界约束。
+id: wbpu-kh550
+version: "1"
+extends: 10-materials-chemistry.yaml
+title: 硅烷杂化水性聚氨酯防腐涂层（Paper 2）
+tool_dir: 70-tools                  # 新项目按规范用 70-tools/（paper1 因历史 verify_command 冻结为 scripts/）
+verify_tool: 70-tools/70-verify.py  # 判据基座（skill 发货，见 scripts/70-verify.py）
+verify_manifest: 70-tools/71-verify-manifest.json
+
+project:
+  name: wbpu-kh550-paper
+  brief: KH-550 硅烷改性棕榈油基水性聚氨酯（KWBPU）有机-无机杂化涂层的防腐性能论文；数据源为林家振毕设第 4 章（Origin 工程 + PDF）。
+  review_mode: unified
+
+axes:
+  paper_type: research-article
+  evidence_form: lab-experimental-with-eis
+  publisher: elsevier
+  language: en
+  reporting: []
+
+# 数据形态不同：Origin 工程需先分离导出，PDF/doc 为兜底来源
+evidence_policy:
+  forbidden_claims: ["首次/突破/最优/全局最优", "服务寿命", "未经测量的机制直证"]
+  impedance_rule: "阻抗类结论必须以等效电路拟合为依据：报告拟合电路、参数与残差；不得只报单频点阻值或把未拟合数值当结论"
+  sibling_boundary: "与 Paper 4（WBPU 配方优化）的边界：基础配方 R=1.5 的出处须在引言交代；不得重复使用 Paper 4 的粒径/透过率数据；与 Paper 5（EPO/POP 上游合成）分属产业链不同环节"
+  supplement_policy: "B 类补实验（盐雾 / EIS 拟合 / 截面形貌）须先由作者裁定是否补做；未补做时相应结论一律降级为“未测”，不得以文献或推算代替"
+  data_separation: "混含多章数据的 Origin 工程必须先分离导出（本稿只取第 4 章 KWBPU 数据），导出件附 .provenance 记录来源工程、工作表与提取方式；无法分离者显式登记为缺口并从 PDF/doc 提取"
+
+# 新增：P1 数据分离导出（本域档特有），并让常规数据任务依赖它
+depends:
+  task-origin-data-separation: []
+  task-audit-data: [task-origin-data-separation]
+  task-analyze-data: [task-audit-data, task-supplement-decision]
+  task-supplement-decision: [task-origin-data-separation]
+
+tasks:
+  # 给继承任务追加 paper2 特有口径（deep_merge 对 inject 追加合并）
+  - id: task-write-results-discussion
+    inject: [impedance_rule]
+  - id: task-write-introduction
+    inject: [sibling_boundary]
+  - id: task-origin-data-separation
+    module: mod-data
+    stage: P1
+    name: Origin 工程分离与导出（KWBPU）
+    brief: 打开全部 Origin 工程，确认是否含第 4 章 KWBPU 数据并分离导出为 CSV，逐文件登记结论。
+    ac:
+      - "`10-data/origin-export/MANIFEST.md` 逐文件给出结论：含 KWBPU（已导出）/不含（只含其他章）/无法判定，覆盖 `10-data/*.opju` 全部工程。"
+      - "每个导出件与同名 `.provenance.md` 配对，记录来源工程文件名、工作表名、列含义与提取方式；导出数值与源工程一致（抽 3 个点复核）。"
+      - "只导出第 4 章 KWBPU 数据；混含其他章的工作表不得整表导出，须按样品名分离。"
+      - "无法从工程分离的条目在 `10-data/origin-export/MANIFEST.md` 登记为缺口（含现有形式如 PDF 图片/表格页码），作为后续 PDF 提取任务输入。"
+    inject: [data_separation, unit_source]
+    read: [{path: "10-data", priority: must_read, hint: Origin 工程与原始数据}, {path: "00-admin/00-plan.md", priority: must_read, hint: 数据来源与边界}]
+    edit: ["10-data/origin-export/MANIFEST.md"]
+    hours: 4
+    difficulty: medium
+    verify: "python {verify_tool} task-origin-data-separation"
+
+  - id: task-supplement-decision
+    module: mod-data
+    stage: P1
+    name: 补实验裁定（人工闸门）
+    brief: 就盐雾/EIS 拟合/截面形貌等补充实验给出补做代价与替代方案，请作者裁定。
+    ac:
+      - "`00-admin/04-supplement-decision.md` 逐项列出补充实验（盐雾、EIS 等效电路拟合、截面形貌、SEM/XPS）的必要性、周期、代价与不补做时的替代写法。"
+      - "给出目标刊分档建议（一区需补项 / 二区需补项），并标注本项为人工闸门：结论须用户确认后方可据以定稿。"
+      - "未获裁定的项在本文件中显式标为 pending；`10-data/10-audit.md` 与骨架的边界须与该结论一致。"
+    inject: [supplement_policy]
+    read: [{path: "00-admin/00-plan.md", priority: must_read, hint: 目标刊与节点}, {path: "00-admin/03-journal-selection.md", priority: reference, hint: 刊物要求}]
+    edit: ["00-admin/04-supplement-decision.md"]
+    hours: 2
+    difficulty: medium
+    verify: "python {verify_tool} task-supplement-decision"

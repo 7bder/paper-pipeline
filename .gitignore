@@ -1,0 +1,16 @@
+# 开发期产物与编译噪声：技能发货不需要（见 README §发布边界）
+__pycache__/
+*.py[cod]
+
+# 生成物沙盒（可由 30-gen-proposals.py 随时重生成）
+build/
+build-paper2/
+
+# paper2 试点沙盒：仅证据（65 KB）；4.0 MB 引擎副本已出仓至
+# C:\VibeCoding\skills\_paper-pipeline-pilot-vendor-20260926\（上游非 git，勿删）
+_pilot/
+
+# 引擎在无 .orchd 的目录里以 cwd 运行时留下的本机状态（含绝对路径）
+.intake.lock
+.layout.json
+.lock
