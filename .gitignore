@@ -6,9 +6,15 @@ __pycache__/
 build/
 build-paper2/
 
-# paper2 试点沙盒：仅证据（65 KB）；4.0 MB 引擎副本已出仓至
-# C:\VibeCoding\skills\_paper-pipeline-pilot-vendor-20260926\（上游非 git，勿删）
+# paper2 试点沙盒：仅证据（65 KB）；4.0 MB 引擎副本已出仓（上游非 git，勿删）。
+# 引擎血统可从 orchestra 工作区的 orchd-core 重建（git 仓库，tag v1.5.0 = 32b4192）。
 _pilot/
+
+# 本机审计档案：审查报告按需落此目录，不入库
+reports/
+
+# 会话临时状态文件（非发货面）
+_tmp-state.txt
 
 # 引擎在无 .orchd 的目录里以 cwd 运行时留下的本机状态（含绝对路径）
 .intake.lock
