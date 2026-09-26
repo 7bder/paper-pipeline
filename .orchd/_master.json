@@ -55,7 +55,7 @@
         "python -X utf8 scripts/75-verify-selftest.py 退出码 0"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L65 N-1（cp936 崩溃复现命令与 stdout 截断证据）、L67 N-5（--manifest 二次拼接）原文；L143 附录 A 是 N-1 的复现配方（本轮实测：本机连 PYTHONIOENCODING 都不必设，默认管道即触发）"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L65 N-1（cp936 崩溃复现命令与 stdout 截断证据）、L67 N-5（--manifest 二次拼接）原文；L143 附录 A 是 N-1 的复现配方（本轮实测：本机连 PYTHONIOENCODING 都不必设，默认管道即触发）"},
         {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §遗留 ②③ 是这两条发现的档位归属记录（原文以报告为准）"},
         {"path": "scripts/75-verify-selftest.py", "priority": "must_read", "hint": "既有守卫套件与退出码语义守卫的写法样板"},
         {"path": "SKILL.md", "priority": "reference", "hint": "判据基座小节：断言类型集合与退出码口径不得回退"}
@@ -81,7 +81,7 @@
         "上述口径各进 1 条守卫，python -X utf8 scripts/75-verify-selftest.py 退出码 0"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4（三处文档形态失效 + M5/M5b/M6 实测）与 L69 N-10（P-1 注入假设）；L142 附录 A 给出 N-4 的复现命令"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4（三处文档形态失效 + M5/M5b/M6 实测）与 L69 N-10（P-1 注入假设）；L142 附录 A 给出 N-4 的复现命令"},
         {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §遗留 ①④ 是这两条发现的档位归属记录（原文以报告为准）"},
         {"path": "scripts/30-gen-proposals.py", "priority": "must_read", "hint": "N-10 现场：P-1 激活分支在 :234-237（entry_mode != multi-paper 即 return/跳过），此处对 task-audit-data 的存在性零校验；N-4 的 --regress/--check 参数解析在同一文件 main 段"},
         {"path": "profiles/00-base-empirical.yaml", "priority": "must_read", "hint": "task-data-asset-mapping 的 P-1 注入语义与 entry.mode 关系"}
@@ -108,7 +108,7 @@
         "基类 evidence_policy 的 unit_source 不再写死字面 data/，改用 {data} 占位；重生成后 rules.fragment.md 中该条出现的路径与本 skill 目录规范一致"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L64 是 N-6 原文（26 条断言逐条只有 forbid+min_bytes，实质断言数 = 0）；L98 给出修复口径二选一（按任务补实质断言 / README 降格表述），本任务取前者"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L64 是 N-6 原文（26 条断言逐条只有 forbid+min_bytes，实质断言数 = 0）；L98 给出修复口径二选一（按任务补实质断言 / README 降格表述），本任务取前者"},
         {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §第 5 档口径记录 N-6 排在待建脚本之前的先序理由"},
         {"path": "references/20-claim-framework.md", "priority": "must_read", "hint": "引用落位机检 5 条与分层证据门限——实质断言该钉什么的判据来源"},
         {"path": "references/30-literature-pipeline.md", "priority": "reference", "hint": "22-refs.json 字段归一口径"},
@@ -317,7 +317,7 @@
         "本任务的四处文档改动各自落定后，README.md 与 SKILL.md 中不再存在指向已消失对象的引用：位置参数形态 --regress 写法、_pilot/ 与 build*/ 留仓表述、悬空序号引用，逐串命中数均为 0"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4 文档面、L68 N-9（P0/P1 顺序表述 + 待建清单第 3 项悬空）、L90 N-7（09-25 报告丢失与 00-DECISIONS 悬空引用）、L91 N-8（build//_pilot 留仓表述与磁盘不符）原文与行号"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4 文档面、L68 N-9（P0/P1 顺序表述 + 待建清单第 3 项悬空）、L90 N-7（09-25 报告丢失与 00-DECISIONS 悬空引用）、L91 N-8（build//_pilot 留仓表述与磁盘不符）原文与行号"},
         {"path": "CHANGELOG.md", "priority": "must_read", "hint": "D-13 §遗留 现仅登记 N-1/N-4/N-5/N-9/N-10（缺 N-2/N-3/N-7/N-8 与 unit_source 措辞项）；D-14 已记录无 git 模式接入与本次报告在档更正，勿重复登记"},
         {"path": "references/10-idea-to-skeleton.md", "priority": "must_read", "hint": "L9-10 三段式给出 P0 收敛 → P1 边界裁定的先后（AC2 的比对基准；注意 data-first 的 P1→P0 是有意倒序，要加说明而非改序）"},
         {"path": "README.md", "priority": "reference", "hint": "L48-50 机检宣称、L108-109 目录树、L143-152 发布边界表 = AC1/AC4 现场"}
@@ -391,7 +391,7 @@
         "python -X utf8 scripts/75-verify-selftest.py 退出码 0，且新增三类守卫各含一条反向对照"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L80 N-3（check_json 的 and data 短路 → rc=0 静默放行）与 L81 N-2（非 dict 条目值 → 裸 traceback rc=1），含建议修法；L105-107 是其优先级判定"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L80 N-3（check_json 的 and data 短路 → rc=0 静默放行）与 L81 N-2（非 dict 条目值 → 裸 traceback rc=1），含建议修法；L105-107 是其优先级判定"},
         {"path": "scripts/70-verify.py", "priority": "must_read", "hint": "现场：verify_task :189-197 直接 spec.get、check_file :86 与 check_json :121 直接取 [path]、check_json :142 elif isinstance(data, list) and data 短路"},
         {"path": ".orchd/shared/conventions.md", "priority": "reference", "hint": "§3 退出码语义（FAIL 优先于 usage-error、缺条目=2）与断言类型集合不得回退"}
       ],
@@ -414,7 +414,7 @@
         "CHANGELOG.md 的 D-13 §遗留 覆盖 09-26 审查报告 N-1…N-10 全部十条，每条标注落点（任务 id 或不修+理由），实测无缺号"
       ],
       "files_to_read": [
-        {"path": "00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L90 N-7 原文（09-25 报告丢失 + 00-project-layout:36-37 悬空引用 + 无版本控制的证据链代价）、L91 N-8、L110 unit_source 措辞项、L124 档案完整性趋势"},
+        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L90 N-7 原文（09-25 报告丢失 + 00-project-layout:36-37 悬空引用 + 无版本控制的证据链代价）、L91 N-8、L110 unit_source 措辞项、L124 档案完整性趋势"},
         {"path": "CHANGELOG.md", "priority": "must_read", "hint": "D-13 §遗留 现有 ①-⑤ 与 D-14 的二次更正条目（报告其实一直在仓内）"}
       ],
       "files_to_edit": ["references/00-project-layout.md", ".gitignore", "CHANGELOG.md"]
