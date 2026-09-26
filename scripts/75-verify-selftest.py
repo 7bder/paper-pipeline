@@ -117,7 +117,7 @@ def run_suite() -> int:
     with tempfile.TemporaryDirectory() as td:
         root = pathlib.Path(td)
         expected = build_case_root(root)
-        r = subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), "--all", "--quiet",
+        r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), "--all", "--quiet",
                             "--json", "--root", str(root)],
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         text = r.stdout or ""
@@ -132,7 +132,7 @@ def run_suite() -> int:
             if have != want:
                 bad.append((tid, want, have))
         # missing-entry 用例：manifest 里没有的任务应返回 rc=2
-        r2 = subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), "no-such-task",
+        r2 = subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), "no-such-task",
                              "--quiet", "--json", "--root", str(root)],
                             capture_output=True, text=True, encoding="utf-8", errors="replace")
         rc2 = r2.returncode
@@ -159,12 +159,12 @@ def run_manifest_guards() -> int:
         mp = root / "70-tools" / "71-verify-manifest.json"
         mp.write_text("{}", encoding="utf-8-sig")   # 带 BOM 的空对象（沙盒实际出现过）
         cases.append(("bom-empty-manifest", subprocess.run(
-            [sys.executable, "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
+            [sys.executable, "-B", "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
              "--root", str(root)],
             capture_output=True, text=True, encoding="utf-8", errors="replace").returncode))
         mp.write_text("{}", encoding="utf-8")        # 无 BOM 纯空对象
         cases.append(("empty-manifest", subprocess.run(
-            [sys.executable, "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
+            [sys.executable, "-B", "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
              "--root", str(root)],
             capture_output=True, text=True, encoding="utf-8", errors="replace").returncode))
     print("== manifest guards（B1/B2）==")
@@ -185,7 +185,7 @@ def run_rc_semantics_guards() -> int:
     def rc_all(root: pathlib.Path, manifest_text: str) -> int:
         mp = root / "70-tools" / "71-verify-manifest.json"
         mp.write_text(manifest_text, encoding="utf-8")
-        return subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), "--all",
+        return subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), "--all",
                                "--quiet", "--root", str(root)],
                               capture_output=True, text=True, encoding="utf-8",
                               errors="replace").returncode
@@ -209,7 +209,7 @@ def run_rc_semantics_guards() -> int:
         cases.append(("all: all pass -> 0", rc_all(root, m_ok)))
         # missing-entry 单任务
         (root / "70-tools" / "71-verify-manifest.json").write_text(m_ok, encoding="utf-8")
-        r = subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), "ghost-task",
+        r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), "ghost-task",
                             "--quiet", "--root", str(root)],
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         cases.append(("single: missing entry -> 2", r.returncode))
@@ -301,7 +301,7 @@ def run_encoding_and_path_guards() -> int:
     cases: list[tuple[str, bool, str]] = []
 
     def call(*args) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, str(VERIFY), *args], capture_output=True,
+        return subprocess.run([sys.executable, "-B", str(VERIFY), *args], capture_output=True,
                               text=True, encoding="utf-8", errors="replace", env=env)
 
     with tempfile.TemporaryDirectory() as td:
@@ -375,7 +375,7 @@ def run_parity(project: pathlib.Path) -> int:
     if not script.exists():
         print("== parity ==\n  跳过：%s 不存在" % script)
         return 0
-    r = subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
+    r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), "--all", "--quiet", "--json",
                         "--root", str(project), "--manifest", str(project / "scripts" / "verify_manifest.json")],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     text = r.stdout or ""
@@ -387,7 +387,7 @@ def run_parity(project: pathlib.Path) -> int:
     print("== parity（vs %s）==" % script)
     mism = []
     for tid in sorted(got):
-        p = subprocess.run([sys.executable, str(script), tid], cwd=str(project),
+        p = subprocess.run([sys.executable, "-B", str(script), tid], cwd=str(project),
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         if p.returncode != got[tid]["rc"]:
             mism.append((tid, p.returncode, got[tid]["rc"]))
