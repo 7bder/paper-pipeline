@@ -151,10 +151,15 @@ paper-pipeline/
 | `reports/` | 存在，1 文件 / 19,585 B（09-26 审查报告），未被 git 跟踪 | 不重建：审计档案只在执行机留存，按需重跑审查 |
 
 `.gitignore` 共 10 条声明，按磁盘实测分三类：上表 2 条在本机存在；`_tmp-state.txt`（会话临时态）
-亦存在但未跟踪；其余 7 条当前**磁盘无此类目**——其中 2 条是曾留仓、已随仓库卫生出仓的开发期目录
+亦存在但未跟踪；其余 7 条在**仓库根目录**当前无此类目——其中 2 条是曾留仓、已随仓库卫生出仓的开发期目录
 （沿革见 `CHANGELOG.md` D-13/D-14/D-16，本节不重复维护），另 5 条为编译与引擎噪声面
-（`__pycache__/`、`*.py[cod]`、`.intake.lock`、`.layout.json`、`.lock`），实测不再生成：跨进程调用一律带
-`-B`，`importlib` 前置 `sys.dont_write_bytecode`；引擎不在无 `.orchd` 的目录以 cwd 运行。
+（`__pycache__/`、`*.py[cod]`、`.intake.lock`、`.layout.json`、`.lock`）。
+
+`.pyc` 的口径要划清两处：**发货面**（`SKILL.md` + `profiles/` + `scripts/` + `assets/` + `references/`）实测
+`*.pyc` = 0、`__pycache__/` = 0，机制是跨进程的 Python 调用带 `-B`、`importlib` 前置 `sys.dont_write_bytecode`
+（两处例外不需要它：manifest 的 `run` 断言按外部命令执行，`-c` 内联探针不落文件）；而 `.orchd/` 里的引擎副本
+另有 128 个 `.pyc`（引擎自身 import 产物，由 `.orchd/.gitignore` 整目录排除，不属发货面）。git 跟踪集内
+`*.pyc`/`__pycache__` 命中 0，故"不再生成"只对发货面与入库集合成立，不要按字面理解成全盘洁净。
 
 两条已实测的边界纪律：
 1. `--check` 对目标论文项目**零写入**（跑前跑后比对全树 mtime+size 为 0 变化；以 `python -B` 起引擎避免落 `.pyc`）。
