@@ -11,6 +11,9 @@
       生产代码段不得含任何缺省词条；自测样本区除外，因为样本正文必须把词写进去才扫得出来）。
 两条扫描面分开，别混成一条：
       规则 1（禁用词）逐行扫全文，只跳过围栏代码块（含围栏标记行）——代码块里是命令与库名，不是文风。
+      围栏状态机按 CommonMark 取两条硬约束（标记行缩进 <=3、闭合符须与开启符同种，见 `_line_kinds`）：
+      少一条都会让状态整体错位一格，把**真散文判成围栏内**而免扫，且标记行总数仍是偶数、
+      连「未闭合」都报不出来（实测旧写法 rc=0 静默通过）。免扫一律记账：未闭合围栏上报错误行。
       **标题行与表格行照扫**：AI 腔进标题更该报；§1.4 规则 2 的「跳过纯标题/表格」只界定**段落**，
       不是把这两类行从词表扫描里豁免掉。
       规则 3（hedging 覆盖）只在段落上判：空行分块，**段内容只取正文行**（`PARAGRAPH_KINDS`）——
@@ -192,20 +195,31 @@ def hedging_regexes(wl):
 # ---------- 分段：规则 2 ----------
 
 def _line_kinds(lines):
-    """逐行定性：fence（围栏标记行）/ infence（围栏内）/ blank / heading / table / text。"""
-    kinds, in_fence = [], False
-    for ln in lines:
+    """逐行定性，返回 (kinds, 未闭合围栏的起始行号|None)。
+
+    kinds ∈ fence（围栏标记行）/ infence（围栏内）/ blank / heading / table / text。
+    围栏的认法按 CommonMark 的两条硬约束，缺一条就会**静默吞掉真散文**（实测）：
+      ① 开/闭标记行的缩进 ≤3 空格——围栏内缩进 4 格的 ``` 是**代码内容**，不是闭合符；
+      ② 闭合符必须与开启符同种（`~~~` 开的只能由 `~~~` 关，` ``` ` 反之）。
+    少了 ① 或少了 ②，围栏状态会整体错位一格：真散文被判成「围栏内」而免扫，而标记行总数仍是偶数，
+    于是连「未闭合」都报不出来——一个字符级别的误判换来整段静默通过，正是本工具最危险的方向。
+    未闭合的行号由状态机自己给出（不是事后按奇偶相消猜），配对错位时无从遁形。
+    """
+    kinds, open_mark, open_line = [], None, None
+    for i, ln in enumerate(lines, 1):
         s = ln.strip()
-        is_fence = s.startswith(FENCE_MARKS)
-        if in_fence:
-            if is_fence:
+        mark = None
+        if len(ln) - len(ln.lstrip()) <= 3 and s.startswith(FENCE_MARKS):
+            mark = s[0]
+        if open_mark is not None:
+            if mark == open_mark:
                 kinds.append("fence")
-                in_fence = False
+                open_mark = open_line = None
             else:
                 kinds.append("infence")
-        elif is_fence:
+        elif mark is not None:
             kinds.append("fence")
-            in_fence = True
+            open_mark, open_line = mark, i
         elif not s:
             kinds.append("blank")
         elif s.startswith("#"):
@@ -214,25 +228,12 @@ def _line_kinds(lines):
             kinds.append("table")
         else:
             kinds.append("text")
-    return kinds
+    return kinds, open_line
 
 
 def scanned_lines(lines, kinds):
     """规则 1 的扫描面：全文逐行，只排除围栏（标记行与围栏内）。"""
     return [(i, ln) for i, (ln, k) in enumerate(zip(lines, kinds), 1) if k in SCANNED_KINDS]
-
-
-def unclosed_fence(kinds):
-    """返回未闭合围栏的起始行号（1 起），配对了就返回 None。
-
-    围栏标记行成对出现（开→关），所以按出现次序两两相消；剩一个开标记就是「一直到文末都在围栏里」。
-    """
-    start = None
-    for i, k in enumerate(kinds, 1):
-        if k != "fence":
-            continue
-        start = i if start is None else None
-    return start
 
 
 def paragraphs(lines, kinds):
@@ -267,7 +268,7 @@ def paragraphs(lines, kinds):
 def scan_file(display, text, wl, matchers, hedging_rxs):
     """返回 (entries, 段数, 未闭合围栏行号|None)。entries = [(display, 行号, 序, 渲染串)]，序 0 = missing-hedging 置顶。"""
     lines = text.splitlines()
-    kinds = _line_kinds(lines)
+    kinds, fence = _line_kinds(lines)
     entries = []
     for rank, (cid, term, rx) in enumerate(matchers, 1):
         for ln, txt in scanned_lines(lines, kinds):
@@ -281,7 +282,7 @@ def scan_file(display, text, wl, matchers, hedging_rxs):
         if any(rx.search(body) for rx in hedging_rxs):
             continue
         entries.append((display, start, 0, "%s para%d@%d" % (MISSING_TAG, idx, start)))
-    return entries, len(paras), unclosed_fence(kinds)
+    return entries, len(paras), fence
 
 
 def _iter_md(root):
@@ -340,7 +341,7 @@ def run_scan(paths, wl_path):
         if fence is not None:
             # 与「读不了的文件」同标准：一个不配对的 ``` 会让后文整片免扫，
             # 静默通过（读起来干净）比报错危险，必须上屏。
-            errors.append("未闭合围栏：%s 第 %d 行的 ``` 直到文末都没配对，其后至文末未参与禁用词扫描"
+            errors.append("未闭合围栏：%s 第 %d 行的围栏标记直到文末都没配对，其后至文末未参与禁用词扫描"
                           % (display, fence))
         entries.extend(got)
         para_total += paras
@@ -649,6 +650,21 @@ def run_selftest():
         rc, out, errb = _st_capture([u3])
         check("R-2 FAIL 优先：未闭合围栏 + 有命中 -> rc=1 且错误行仍上报",
               (rc, "未闭合围栏" in errb), (EXIT_FAIL, True))
+
+        # ---------- 返工 R-5：围栏状态机的两条硬约束（缩进 <=3 / 闭合符同种） ----------
+        g1 = os.path.join(tmp, "indent_fence.md")
+        _st_write(g1, ["intro line", "```", "    ```", "```",
+                       "The sample is %s and must not be swallowed." % t_hype])
+        rc, out, errb = _st_capture([g1])
+        check("R-5 围栏内缩进 4 格的 ``` 是代码内容而非闭合符（真散文照扫，旧写法在此静默吞词）",
+              (report_lines(out, "indent_fence.md:"), "未闭合围栏" in errb),
+              (["indent_fence.md:5: [hype] %s" % t_hype], False))
+        g2 = os.path.join(tmp, "marker_swap.md")
+        _st_write(g2, ["intro line", "~~~", "code", "```", "%s inside a still-open block" % t_hype])
+        rc, out, errb = _st_capture([g2])
+        check("R-5 ~~~ 开的围栏不被 ``` 关闭：整块免扫但必须记账（免扫不静默）",
+              (rc, report_lines(out, "marker_swap.md:"), "未闭合围栏" in errb and "第 2 行" in errb),
+              (EXIT_USAGE, [], True))
 
         # ---------- 返工 R-1：非法 YAML 词表必须 rc=2，不得 traceback 直出 ----------
         by = os.path.join(tmp, "broken.yaml")
