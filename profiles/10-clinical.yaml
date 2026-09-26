@@ -573,7 +573,7 @@ tasks:
       - "伦理、知情同意与注册声明缺项或措辞与 `{admin}/08-ethics-registration.md` 不一致时判为 CRITICAL（合规项，不因文字流畅降级）。"
     inject: [forbidden_claims, ethics_registration]
     ac_exception: true            # 5 条产物 AC + 2 条域口径注入（伦理声明状态与禁用断言都是评审判 CRITICAL 的依据，不能砍）
-    read: [{path: "{ms}/36-draft.md", priority: must_read, hint: 受审稿}, {path: "{review}/53-reporting-checklist.md", priority: must_read, hint: 报告规范清单结论}, {path: "{ms}/37-references.md", priority: must_read, hint: 文献表}, {path: "{data}/11-analysis.md", priority: must_read, hint: 数据事实}, {path: "{admin}/03-journal-selection.md", priority: must_read, hint: 目标刊要求}]
+    read: [{path: "{ms}/36-draft.md", priority: must_read, hint: 受审稿}, {path: "{admin}/08-ethics-registration.md", priority: must_read, hint: 三类声明状态与待确认项（判 CRITICAL 的比对对象）}, {path: "{review}/53-reporting-checklist.md", priority: must_read, hint: 报告规范清单结论}, {path: "{ms}/37-references.md", priority: must_read, hint: 文献表}, {path: "{data}/11-analysis.md", priority: must_read, hint: 数据事实}, {path: "{admin}/03-journal-selection.md", priority: must_read, hint: 目标刊要求}]
     edit: ["{review}/50-review-report.md"]
     hours: 3
     difficulty: high
@@ -588,7 +588,7 @@ tasks:
       - "`{ms}/38-final.md` 落实评审报告中全部 CRITICAL/MAJOR 项，并在 `{review}/51-response-to-review.md` 逐条给处置与依据。"
       - "终稿零占位符：无标记、无 TODO/TBD、无面向作者的说明块；未获取的伦理与注册号按 `{admin}/08-ethics-registration.md` 的待确认口径统一上收为作者待办清单，不在正文留悬空句。"
       - "定稿只改陈述与措辞，不改任何结果数值；数值变更须回到 `{data}/11-analysis.md` 与 `{data}/10-audit.md` 并说明。"
-    read: [{path: "{review}/50-review-report.md", priority: must_read, hint: 评审问题清单}, {path: "{review}/53-reporting-checklist.md", priority: must_read, hint: 规范未满足项}, {path: "{ms}/36-draft.md", priority: must_read, hint: 待改稿}, {path: "{ms}/37-references.md", priority: must_read, hint: 文献表}]
+    read: [{path: "{review}/50-review-report.md", priority: must_read, hint: 评审问题清单}, {path: "{admin}/08-ethics-registration.md", priority: must_read, hint: 待确认口径上收依据}, {path: "{review}/53-reporting-checklist.md", priority: must_read, hint: 规范未满足项}, {path: "{ms}/36-draft.md", priority: must_read, hint: 待改稿}, {path: "{ms}/37-references.md", priority: must_read, hint: 文献表}]
     edit: ["{ms}/38-final.md", "{review}/51-response-to-review.md"]
     hours: 3.5
     difficulty: medium
