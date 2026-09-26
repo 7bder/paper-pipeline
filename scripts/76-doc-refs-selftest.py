@@ -6,7 +6,7 @@
     python -X utf8 scripts/76-doc-refs-selftest.py            # 五条守卫（verify_command 形态）
     python -X utf8 scripts/76-doc-refs-selftest.py --selftest # 合成控制用例（红绿双向 + 反向对照）
 
-五条守卫（各对应 `references/60-capability-specs.md` §4 / 任务 AC 的一条）：
+五条守卫（G1/G3 对 AC1、AC2，G4 对 AC3，G2/G5 是同类悬空引用的横向补齐）：
   G1 死档案引用：发布面文档引用 `00-DECISIONS.md` / `00-REVIEW-2026-09-25.md` / 仓外 vendor 目录时，
      同一行必须带失效标记（"已消失 / 不在磁盘 / 重命名 / 悬空 / 丢失 …"），否则按悬空引用判 FAIL；
      `references/00-project-layout.md` 对 `00-DECISIONS.md` 是**硬零**（AC1 逐字要求）。
@@ -143,11 +143,18 @@ def check(texts: dict) -> list:
     for rel in [k for k in texts if k.startswith("references/") and k.endswith(".md")]:
         ref_titles[rel] = {t.strip(" #").strip() for t in re.findall(r"^#{2,3} (.+)$", texts[rel], re.M)}
     for rel in scope_files(texts):
+        own_titles = ref_titles.get(rel)
         for i, line in enumerate(texts[rel].split("\n"), 1):
             for dn in re.findall(r"\bD-(\d{1,3})\b", line):
                 if ("D-%s" % dn) not in d_heads:
                     fail("G2", "%s:%d 引 CHANGELOG 小节 D-%s，但本文件无该编号标题（现有 %s）"
                          % (rel, i, dn, "、".join(sorted(d_heads)) or "无"))
+            # 自引用（"本表 §5"、"本节 …"）同样要落得下——它是读者最先查的那一处
+            if own_titles is not None:
+                for m in re.finditer(r"(?:本表|本节|本文|本文件)\s*§\s*(\d+(?:\.\d+)*)", line):
+                    if not heading_has(own_titles, m.group(1)):
+                        fail("G2", "%s:%d 自引 §%s，本文件无该小节（现有：%s）"
+                             % (rel, i, m.group(1), "、".join(sorted(t for t in own_titles if t)[:6]) or "无标题"))
             for m in re.finditer(r"`?(references/[\w.-]+\.md)[`]?\s*§\s*([^\s，。；)）]+)", line):
                 target, raw = m.group(1), m.group(2)
                 titles = ref_titles.get(target)
@@ -197,11 +204,20 @@ def check(texts: dict) -> list:
             fail("G4", "%s 行无状态（已修 / 不修+理由 / 本任务修）：读者无法判断是否还需动" % key)
         if not TASK_ID.search(joined) and "不修" not in joined:
             fail("G4", "%s 行既无落点任务 id 也未写「不修 + 理由」" % key)
-        if not re.search(r"\.(py|md|yaml|json)", joined):
-            fail("G4", "%s 行无 file 级证据（AC3 + conventions §4 证据要求：落点要到具体文件）" % key)
-    if not re.search(r"待用户裁决[\s\S]{0,400}不修 \+ 理由", changelog):
-        fail("G4", "两处待用户裁决缺「不修 + 理由」表述")
-    dup = [d for d in set(H2_D.findall(changelog)) if len(H2_D.findall(changelog)) - H2_D.findall(changelog).count(d) > 0]
+        # 证据只看**末列**（实测证据）：整行拼起来判会让落点列里的文件名替证据列顶包
+        evidence = cells[-1] if len(cells) >= 3 else ""
+        if not re.search(r"[\w.-]+\.(py|md|yaml|json)", evidence):
+            fail("G4", "%s 行「实测证据」列没有 file 级指向（AC3 + conventions §4：证据要到具体文件，"
+                       "且不能靠其他列的文件名顶包）：%s" % (key, evidence[:60]))
+        if len(cells) < 5:
+            fail("G4", "%s 行列数 %d < 5（主题/级别·状态/落点/实测证据 缺一即无法机检）" % (key, len(cells)))
+    pending = [l for l in changelog.split("\n") if "待用户裁决" in l and l.strip().startswith("-")]
+    if not pending:
+        fail("G4", "CHANGELOG 无「两处待用户裁决」条（裁决项必须可见且各带不修 + 理由）")
+    else:
+        for item in re.split(r"[①②③④⑤]", pending[0])[1:]:
+            if "不修 + 理由" not in item:
+                fail("G4", "待用户裁决的某项缺「不修 + 理由」（读者无法区分漏做与刻意）：%s" % item[:50])
     seen = {}
     for d in H2_D.findall(changelog):
         seen[d] = seen.get(d, 0) + 1
@@ -285,8 +301,9 @@ def _base_snapshot() -> dict:
         "### D-13 续 · 09-26 报告全量复核",
         "",
     ])
-    layout = "# 项目文件组织\n\n> 原件未在本工作空间留档，结论落 `CHANGELOG.md` 的 D-13。\n" \
-             "> 编号规则见 `CHANGELOG.md` D-13 与 `references/20-claim-framework.md §3`。\n"
+    layout = ("# 项目文件组织\n\n> 原件未在本工作空间留档，结论落 `CHANGELOG.md` 的 D-13。\n"
+              "> 编号规则见 `CHANGELOG.md` D-13 与 `references/20-claim-framework.md §3`。\n"
+              "> 本表 §5 是迁移方案。\n\n## 5. paper1 迁移方案\n")
     gitignore = ("# 开发期产物\n__pycache__/\n\n# 生成物沙盒\nbuild/\nbuild-paper2/\n\n"
                  "# paper2 试点沙盒：当前不在盘，需要时重跑 `scripts/30-gen-proposals.py`。\n"
                  "# 引擎血统可从 orchd-core（git 仓库，tag v1.5.0 = 32b4192）重建。\n_pilot/\n"
@@ -317,6 +334,9 @@ def selftest() -> int:
         counters["control"] += 1
         snap = {k: v for k, v in base.items()}
         mutate(snap)
+        if snap == {k: v for k, v in base.items()}:
+            bad.append("%s：变异没有改动任何输入（用例自身失效，不算验过）" % label)
+            return
         fails = check(snap)
         hits = [d for g, d in fails if g == guard]
         if not fails:
@@ -375,6 +395,25 @@ def selftest() -> int:
 
     expect("G4-证据列无 file 级指向", strip_evidence, "G4")
 
+    def evidence_piggyback(s):
+        s["CHANGELOG.md"] = s["CHANGELOG.md"].replace(
+            "| N-5 | 主题 5 | P2·已修 | `task-demo-5` | `scripts/70-verify.py:45` |",
+            "| N-5 | 主题 5 | P2·已修 | `scripts/70-verify.py` 的 `resolve_manifest()` | 已处理 |")
+
+    expect("G4-顶包：落点列有文件名、证据列空话", evidence_piggyback, "G4")
+
+    def pending_reason(s):
+        s["CHANGELOG.md"] = s["CHANGELOG.md"].replace(
+            "② 空验收 不修 + 理由：通用门禁。", "② 空验收是否收紧。")
+
+    expect("G4-待裁决某项丢掉「不修 + 理由」", pending_reason, "G4")
+
+    def self_section_drift(s):
+        s["references/00-project-layout.md"] = s["references/00-project-layout.md"].replace(
+            "本表 §5 是迁移方案", "本表 §99 是迁移方案")
+
+    expect("G2-自引小节号漂走（本表 §99）", self_section_drift, "G2")
+
     def dup_d15(s):
         s["CHANGELOG.md"] = s["CHANGELOG.md"].replace("## D-14 接入", "## D-14 接入\n\n## D-15 重复编号条目\n")
 
@@ -383,7 +422,7 @@ def selftest() -> int:
     if not counters["control"]:
         print("  FAIL  反向对照用例数为 0 → 自测面退化成空转")
         return 1
-    for label, msg in bad:
+    for msg in bad:
         print("  FAIL  %s" % msg)
     if bad:
         print("SELFTEST FAIL（%d）" % len(bad))
