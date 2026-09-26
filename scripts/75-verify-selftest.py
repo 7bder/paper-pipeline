@@ -369,6 +369,204 @@ def run_encoding_and_path_guards() -> int:
     return 1 if bad else 0
 
 
+def run_manifest_shape_guards() -> int:
+    """N-3（空列表逐条键检查恒真 = fail-open）与 N-2（manifest 形态裸崩）的守卫。
+
+    三类各带一条**锚点**：锚点不复用 70 的代码，而是把出问题的判据表达式本身放进子进程跑，
+    证明该形态在朴素写法下确实恒真（类 1）/确实抛异常（类 2、3）。没有锚点的话，守卫可能只是
+    陪着修复一起变绿的空转装饰——AC5 要求的反向对照口径就是"把判据拆掉后测试要变红"。
+    """
+    cases: list[tuple[str, bool, str]] = []
+
+    def call(root: pathlib.Path, *args) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", str(VERIFY), *args, "--root", str(root)],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+    def snippet(code: str) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", "-c", code], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace")
+
+    def mk(name: str, manifest: dict, files: dict | None = None) -> pathlib.Path:
+        root = base / name
+        (root / "70-tools").mkdir(parents=True, exist_ok=True)
+        (root / "70-tools" / "71-verify-manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        for rel, content in (files or {}).items():
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return root
+
+    def crashed(r: subprocess.CompletedProcess) -> str:
+        err = r.stderr or ""
+        return err.splitlines()[-1].strip() if err.strip() else ""
+
+    with tempfile.TemporaryDirectory() as td:
+        base = pathlib.Path(td)
+
+        # ==== 类 1：json_files 空列表（N-3，本仓唯一真 fail-open）====
+        anchor = snippet("import sys;sys.exit(0 if all('doi' in it for it in []) else 1)")
+        cases.append(("锚点：空列表下逐条键检查恒真", anchor.returncode == 0,
+                      "rc=%d" % anchor.returncode))
+        req_all = {"t": {"json_files": [{"path": "e.json", "require_keys_all": ["doi"]}]}}
+        r = mk("empty-all", req_all, {"e.json": "[]"})
+        p1 = call(r, "t")
+        cases.append(("空列表 + require_keys_all 不再 rc=0", p1.returncode == 1,
+                      "rc=%d %s" % (p1.returncode, crashed(p1) or p1.stdout[-90:])))
+        cases.append(("空转消息含 path 与「空列表」",
+                      "e.json" in p1.stdout and "空列表" in p1.stdout,
+                      "stdout=%r" % p1.stdout[-160:]))
+        r = mk("empty-keys", {"t": {"json_files": [{"path": "e.json",
+                                                   "require_keys": ["doi"]}]}},
+               {"e.json": "[]"})
+        p2 = call(r, "t")
+        cases.append(("空列表 + require_keys 不 IndexError",
+                      p2.returncode == 1 and not crashed(p2),
+                      "rc=%d %s" % (p2.returncode, crashed(p2))))
+        r = mk("empty-min", {"t": {"json_files": [{"path": "e.json", "require_keys_all": ["doi"],
+                                                  "min_items": 1}]}}, {"e.json": "[]"})
+        p3 = call(r, "t")
+        cases.append(("配 min_items=1 时原口径不回退",
+                      p3.returncode == 1 and "min 1" in p3.stdout, "rc=%d" % p3.returncode))
+        r = mk("nonempty", req_all, {"e.json": json.dumps([{"doi": "1"}])})
+        p4 = call(r, "t")
+        cases.append(("非空且字段齐全仍 PASS（防过度收紧）", p4.returncode == 0,
+                      "rc=%d %s" % (p4.returncode, p4.stdout[-90:])))
+        rschema = call(base / "empty-all", "--schema")
+        cases.append(("--schema 写明 require_keys* 与 min_items 组合语义",
+                      "require_keys_all" in rschema.stdout and "min_items" in rschema.stdout
+                      and "空列表" in rschema.stdout, "rc=%d" % rschema.returncode))
+
+        # ==== 类 2：条目值形态（N-2，曾以 AttributeError 裸崩冒充 FAIL）====
+        anchor = snippet("s='oops';s.get('files')")
+        cases.append(("锚点：朴素 spec.get 对字符串必崩",
+                      anchor.returncode != 0 and "AttributeError" in (anchor.stderr or ""),
+                      "rc=%d %s" % (anchor.returncode, crashed(anchor))))
+        r = mk("str-entry", {"t-str": "oops"})
+        s1 = call(r, "--all")
+        cases.append(("条目值为字符串 --all → rc=2", s1.returncode == 2, "rc=%d" % s1.returncode))
+        cases.append(("形态消息含任务 id 与定位说明",
+                      "t-str" in s1.stdout and "条目值必须是对象" in s1.stdout
+                      and "str" in s1.stdout, "stdout=%r" % s1.stdout[-160:]))
+        cases.append(("无 AttributeError 裸 traceback", "AttributeError" not in (s1.stderr or ""),
+                      crashed(s1)))
+        s2 = call(r, "t-str")
+        cases.append(("单任务形态同样 rc=2", s2.returncode == 2, "rc=%d" % s2.returncode))
+        r = mk("null-entry", {"t-null": None})
+        s3 = call(r, "--all")
+        cases.append(("null 条目值报形态错而非「无条目」",
+                      s3.returncode == 2 and "NoneType" in s3.stdout
+                      and "no manifest entry" not in s3.stdout, "rc=%d" % s3.returncode))
+        r = mk("mixed", {"ok-entry": {"files": [{"path": "a.md", "contains": ["x"]}]},
+                         "t-str": "oops"}, {"a.md": "x"})
+        s4 = call(r, "--all")
+        cases.append(("混合 manifest：坏条目不吞好条目判定",
+                      s4.returncode == 2 and "PASS: ok-entry" in s4.stdout
+                      and "形态不合: t-str" in s4.stdout,
+                      "rc=%d %s" % (s4.returncode, s4.stdout[-200:])))
+
+        # ==== 类 3：段内项形态（缺定位键 / 段或键类型不合）====
+        anchor = snippet("{}['path']")
+        cases.append(("锚点：缺 path 的朴素取键必 KeyError",
+                      anchor.returncode != 0 and "KeyError" in (anchor.stderr or ""),
+                      "rc=%d %s" % (anchor.returncode, crashed(anchor))))
+        r = mk("no-path", {"t": {"files": [{"min_bytes": 10}]}}, {"a.md": "x"})
+        f1 = call(r, "t")
+        cases.append(("files[0] 缺 path → rc=2", f1.returncode == 2, "rc=%d" % f1.returncode))
+        cases.append(("缺键消息含段名[下标]与键名",
+                      "files[0]" in f1.stdout and "path" in f1.stdout
+                      and "min_bytes" in f1.stdout, "stdout=%r" % f1.stdout[-160:]))
+        r = mk("json-no-path", {"t": {"json_files": [{"min_items": 1}]}}, {"e.json": "[]"})
+        f2 = call(r, "t")
+        cases.append(("json_files[0] 缺 path → rc=2", f2.returncode == 2, "rc=%d" % f2.returncode))
+        r = mk("glob-no-pattern", {"t": {"globs": [{"min_count": 1}]}}, {})
+        f3 = call(r, "t")
+        cases.append(("globs[0] 缺 pattern → rc=2 且点名 pattern",
+                      f3.returncode == 2 and "pattern" in f3.stdout,
+                      "rc=%d %s" % (f3.returncode, f3.stdout[-120:])))
+        r = mk("bad-type", {"t": {"json_files": [{"path": "e.json", "min_items": "20"}]}},
+               {"e.json": "[]"})
+        f4 = call(r, "t")
+        cases.append(("min_items 写成字符串 → rc=2 而非 TypeError",
+                      f4.returncode == 2 and "必须是 int" in f4.stdout and not crashed(f4),
+                      "rc=%d %s" % (f4.returncode, crashed(f4) or f4.stdout[-120:])))
+        r = mk("null-knob", {"t": {"files": [{"path": "a.md", "min_bytes": None}]}},
+               {"a.md": "x"})
+        f5 = call(r, "t")
+        cases.append(("段内键值为 null → rc=2（笔误不当省略）",
+                      f5.returncode == 2 and "NoneType" in f5.stdout, "rc=%d" % f5.returncode))
+        r = mk("null-seg", {"t": {"files": None, "json_files": None, "globs": None,
+                                  "absent_paths": None}}, {})
+        f6 = call(r, "t")
+        cases.append(("整段写 null 等同省略（宽容不回退）", f6.returncode == 0,
+                      "rc=%d %s" % (f6.returncode, f6.stdout[-120:])))
+        r = mk("scalar-json", {"t": {"json_files": [{"path": "e.json", "min_items": 1}]}},
+               {"e.json": "5"})
+        f7 = call(r, "t")
+        cases.append(("产物 JSON 顶层标量 → rc=1 且无 TypeError",
+                      f7.returncode == 1 and "顶层必须是数组或对象" in f7.stdout
+                      and not crashed(f7),
+                      "rc=%d %s" % (f7.returncode, crashed(f7) or f7.stdout[-120:])))
+
+        # ==== 类 3 续：可选项的**内部**形态（少键 / 元素类型 / 坏正则）====
+        anchor = snippet("m={'pattern':'x'};m['min']")
+        cases.append(("锚点：min_matches 少 min 必 KeyError",
+                      anchor.returncode != 0 and "KeyError" in (anchor.stderr or ""),
+                      "rc=%d %s" % (anchor.returncode, crashed(anchor))))
+        r = mk("mm-nomin", {"t": {"files": [{"path": "a.md",
+                                            "min_matches": {"pattern": "Fig"}}]}}, {"a.md": "Fig 1"})
+        k1 = call(r, "t")
+        cases.append(("min_matches 少 min → rc=2 且点名 min",
+                      k1.returncode == 2 and "min" in k1.stdout and not crashed(k1),
+                      "rc=%d %s" % (k1.returncode, crashed(k1) or k1.stdout[-120:])))
+        r = mk("mm-badre", {"t": {"files": [{"path": "a.md",
+                                             "min_matches": {"pattern": "(", "min": 1}}]}},
+               {"a.md": "x"})
+        k2 = call(r, "t")
+        cases.append(("坏正则（min_matches）→ rc=2 而非 re.error",
+                      k2.returncode == 2 and "不是合法正则" in k2.stdout and not crashed(k2),
+                      "rc=%d %s" % (k2.returncode, crashed(k2) or k2.stdout[-120:])))
+        r = mk("fr-badre", {"t": {"files": [{"path": "a.md", "forbid_regex": ["("]}]}},
+               {"a.md": "x"})
+        k3 = call(r, "t")
+        cases.append(("坏正则（forbid_regex）→ rc=2", k3.returncode == 2
+                      and "不是合法正则" in k3.stdout, "rc=%d" % k3.returncode))
+        r = mk("wc-str", {"t": {"files": [{"path": "a.md", "word_count": ["10", 20]}]}},
+               {"a.md": "x"})
+        k4 = call(r, "t")
+        cases.append(("word_count 端点非整数 → rc=2",
+                      k4.returncode == 2 and "两个整数" in k4.stdout and not crashed(k4),
+                      "rc=%d %s" % (k4.returncode, crashed(k4) or k4.stdout[-120:])))
+        r = mk("wc-len", {"t": {"files": [{"path": "a.md", "word_count": [10]}]}}, {"a.md": "x"})
+        k5 = call(r, "t")
+        cases.append(("word_count 非两元 → rc=2", k5.returncode == 2, "rc=%d" % k5.returncode))
+        r = mk("path-int", {"t": {"files": [{"path": 12}]}}, {})
+        k6 = call(r, "t")
+        cases.append(("定位键写成数字 → rc=2 且点名定位键",
+                      k6.returncode == 2 and "定位键" in k6.stdout, "rc=%d" % k6.returncode))
+        r = mk("contains-int", {"t": {"files": [{"path": "a.md", "contains": ["x", 3]}]}},
+               {"a.md": "x"})
+        k7 = call(r, "t")
+        cases.append(("contains 混入数字 → rc=2 而非 TypeError",
+                      k7.returncode == 2 and "contains[1]" in k7.stdout and not crashed(k7),
+                      "rc=%d %s" % (k7.returncode, crashed(k7) or k7.stdout[-120:])))
+        r = mk("reqkey-int", {"t": {"json_files": [{"path": "e.json",
+                                                    "require_keys_all": [7]}]}},
+               {"e.json": '[{"doi": "1"}]'})
+        k8 = call(r, "t")
+        cases.append(("require_keys_all 混入数字 → rc=2", k8.returncode == 2,
+                      "rc=%d" % k8.returncode))
+
+    print("== manifest 形态守卫（N-2/N-3）==")
+    bad = 0
+    for name, ok, detail in cases:
+        print("  %-38s %s%s" % (name, "OK" if ok else "MISMATCH",
+                                "" if ok or not detail else "  " + detail))
+        if not ok:
+            bad += 1
+    return 1 if bad else 0
+
+
 def run_parity(project: pathlib.Path) -> int:
     """与项目自带 verify 脚本逐任务比对判定（rc 必须一致）。"""
     script = project / "scripts" / "verify.py"
@@ -406,6 +604,7 @@ def main() -> int:
     rc |= run_rc_semantics_guards()
     rc |= run_generator_guards()
     rc |= run_encoding_and_path_guards()
+    rc |= run_manifest_shape_guards()
     if a.project:
         rc |= run_parity(pathlib.Path(a.project).resolve())
     print("\nSELFTEST %s" % ("PASS" if rc == 0 else "FAIL"))
