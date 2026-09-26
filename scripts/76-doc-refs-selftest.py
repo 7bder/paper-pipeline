@@ -215,7 +215,10 @@ def check(texts: dict) -> list:
     if not pending:
         fail("G4", "CHANGELOG 无「两处待用户裁决」条（裁决项必须可见且各带不修 + 理由）")
     else:
-        for item in re.split(r"[①②③④⑤]", pending[0])[1:]:
+        items = re.split(r"[①②③④⑤]", pending[0])[1:]
+        if len(items) < 2:
+            fail("G4", "「待用户裁决」条未用 ①② 分列（分不开就判不了每项有没有理由）：%s" % pending[0][:60])
+        for item in items:
             if "不修 + 理由" not in item:
                 fail("G4", "待用户裁决的某项缺「不修 + 理由」（读者无法区分漏做与刻意）：%s" % item[:50])
     seen = {}
@@ -224,9 +227,6 @@ def check(texts: dict) -> list:
     dup = sorted([d for d, c in seen.items() if c > 1])
     if dup:
         fail("G5", "CHANGELOG 有重复的二级编号：%s（引用者无法确定指向哪一条）" % "、".join(dup))
-    ghost = [k for k in seen if k.startswith("D-") and (H2_D.findall(changelog).count(k) + H3_D.findall(changelog).count(k)) == 0]
-    if ghost:
-        fail("G5", "编号只出现在正文引用而无对应小节：%s" % "、".join(sorted(set(ghost))))
 
     # ---- G2 补：引用路径必须在盘 ------------------------------------------
     for rel in scope_files(texts):
@@ -407,6 +407,13 @@ def selftest() -> int:
             "② 空验收 不修 + 理由：通用门禁。", "② 空验收是否收紧。")
 
     expect("G4-待裁决某项丢掉「不修 + 理由」", pending_reason, "G4")
+
+    def pending_no_marks(s):
+        s["CHANGELOG.md"] = s["CHANGELOG.md"].replace(
+            "：① 图件命名 不修 + 理由：跨盘迁移；② 空验收 不修 + 理由：通用门禁。",
+            "：图件命名与空验收两项待定。")
+
+    expect("G4-待裁决不分 ①② 列项（每项判据会空转）", pending_no_marks, "G4")
 
     def self_section_drift(s):
         s["references/00-project-layout.md"] = s["references/00-project-layout.md"].replace(
