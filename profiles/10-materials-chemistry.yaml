@@ -42,8 +42,10 @@ modules:
   - { id: mod-fig,   name: 图件,     role: "矢量数据图、示意图、光栅图版与规格同步；不含正文写作" }
   - { id: mod-final, name: 终局,     role: "投稿前评审、定稿响应与排版构建；不含内容再创作" }
 
-# 学科特有口径（通用键 unit_source/missing_data/hedging_required 已在基类）
+# 学科特有口径（通用键 missing_data/hedging_required 已在基类）
 evidence_policy:
+  # 覆盖基类的 `{data}` 占位为具体编号目录（生成器不替换 evidence_policy，见基类同键注释）。
+  unit_source: "唯一数据源 = 项目 10-data/（含 .provenance），不得引入项目外数据"
   replicates: "除特别声明外 n=1；仅平行测定类指标（如凝胶率）可报 mean ± SD，且不得据此做统计检验"
   forbidden_claims: ["首次/突破/最优/全局最优", "服务寿命", "未经测量的机制直证", "定量阻抗类结论（若未测 EIS）"]
   domain_checklist:
@@ -76,6 +78,133 @@ verify_assertions_template:
   - task: "*"
     apply_to: edit_files_binary
     min_bytes_each: 5000   # 真实图件 pdf/png 实测 ≥28KB；5KB 只拦占位/坏文件，不误伤小矢量
+
+  # ── 实质断言（2026-09-26 审查 N-6）──────────────────────────────────────────
+  # 只有一条 forbid+min_bytes 通配 = 门禁只拦"空文件与残留 TODO"，任何内容判据都不验，
+  # done 时形同空转。以下按任务落实质判据，每条都可回指本档 AC 或 references/20、references/30
+  # 的字段名；阈值一律取 paper1（同域已完工项目）真实值的**一半以下**作外沿，宁松不误伤。
+  # 三条硬约束由 scripts/78-assertions-selftest.py 机检，改本块前先跑它：
+  #   ① path 必须写**字面量**：生成器只替换任务规格的 {data}/{ms} 占位，不替换本块与 rules_fragment；
+  #   ② path 必须落在该任务的 files_to_edit ∪ files_to_read 内（否则是永远验不到的幽灵断言）；
+  #   ③ json_files 用 require_keys/require_keys_all 时必须同时给 min_items——70-verify.py 对空
+  #      列表短路（N-3 已知 fail-open），空库会静默 PASS。
+  #   ④ 断言只准出现在**两档共有**的任务上：10-wbpu-kh550 自有任务（origin-data-separation /
+  #      supplement-decision）不能在本档被点名（生成器 die: unknown task），而子档若重定义
+  #      本键会整体替换掉这里的全部条目（deep_merge 对 list 是替换，按任务合并尚未实现），
+  #      故子档只追加通配项、实质断言集中在本档这一处唯一落点。
+  - task: task-audit-data            # AC「缺口清单（G 编号）」「口径」「逐值核对」
+    files:
+      - path: 10-data/10-audit.md
+        contains: ["核对", "缺口", "口径"]
+        min_matches: { pattern: "G\\d+", min: 3 }
+  - task: task-analyze-data          # AC「数字化精度」「逐图给出类型/坐标轴与单位/误差棒」
+    files:
+      - path: 10-data/11-analysis.md
+        contains: ["数字化", "误差"]
+      - path: 40-figures/40-figure-specs.md
+        contains: ["误差棒", "矢量", "光栅", "坐标轴"]
+  - task: task-claim-map             # references/20 §2 字段表：claim_id=C-1…、evidence_strength、boundary、needs
+    files:
+      - path: 20-lit/20-claims-map.md
+        contains: ["claim_id", "evidence_strength", "boundary", "needs"]
+        min_matches: { pattern: "C-\\d+", min: 8 }
+  - task: task-skeleton-contract     # AC「02-skeleton 逐节论点/预算」「01-meta 字段与 skeleton 一致」
+    files:
+      - path: 00-admin/02-skeleton.md
+        contains: ["Introduction", "Experimental", "Results", "Conclusion", "预算"]
+    json_files:
+      - path: 00-admin/01-meta.json
+        min_items: 5
+        require_keys: ["target_journal", "citation", "word_budget", "figures", "tables"]
+  - task: task-screen-existing-refs  # AC「逐条给出 keep/drop 与理由，覆盖既有库全部条目」
+    files:
+      - path: 20-lit/20-screening.md
+        contains: ["keep", "drop"]
+        min_matches: { pattern: "keep|drop", min: 20 }
+  - task: task-search-verify-refs    # AC 字段清单 + references/30 §1 ② 验真判据（grade/two_source_verified/verify_checks）
+    json_files:
+      - path: 20-lit/21-candidates.json
+        min_items: 20
+        require_keys: ["title", "doi", "source", "verify_checks"]
+      - path: 20-lit/22-refs.json
+        min_items: 20
+        require_keys_all: ["ref_no", "authors", "title", "journal", "year", "doi",
+                           "grade", "verify_checks", "two_source_verified"]
+  - task: task-lit-fulltext-inventory # AC「按可得性分层（机制承载 / 背景支撑 / 备选）」
+    files:
+      - path: 20-lit/24-fulltext-inventory.md
+        contains: ["机制承载", "背景支撑", "备选"]
+  - task: task-select-journal        # AC「影响因子/分区、版面与开放获取费用」
+    files:
+      - path: 00-admin/03-journal-selection.md
+        contains: ["分区", "开放获取", "版面"]
+  - task: task-write-experimental    # AC 覆盖原料/制备与表征；字数区间为外沿，权威预算在 01-meta/skeleton
+    files:
+      - path: 30-manuscript/sections/32-experimental.md
+        contains: ["Materials", "Characterization"]
+        word_count: [400, 2500]
+  - task: task-write-introduction    # AC「背景类引用只出现在本节」+ references/20 §5 落位：本节必须有编号引用
+    files:
+      - path: 30-manuscript/sections/31-introduction.md
+        word_count: [500, 2000]
+        min_matches: { pattern: "\\[\\d+", min: 8 }
+  - task: task-write-results-discussion # AC「按骨架的图表顺序推进，逐图逐表」
+    files:
+      - path: 30-manuscript/sections/33-results-discussion.md
+        word_count: [2000, 8000]
+        min_matches: { pattern: "Fig\\.\\s*\\d+", min: 8 }
+  - task: task-write-conclusion-abstract # AC「摘要…无引用、无未定义缩写」「词数区间」
+    files:
+      - path: 30-manuscript/30-abstract.md
+        word_count: [120, 350]
+        forbid_regex: ["\\[\\d+\\s*[,\\]]"]
+      - path: 30-manuscript/sections/34-conclusion.md
+        word_count: [200, 900]
+  - task: task-assemble-draft        # AC「图注编号 Fig.1..N 唯一且连续」「37 每条含 …DOI」
+    files:
+      - path: 30-manuscript/36-draft.md
+        word_count: [3000, 12000]
+        min_matches: { pattern: "\\*\\*Fig\\. \\d+\\.\\*\\*", min: 2 }
+      - path: 30-manuscript/37-references.md
+        contains: ["DOI"]
+        min_matches: { pattern: "\\[\\d+\\]", min: 20 }
+  - task: task-citation-audit        # AC「判定（支持/部分支持/不支持）与判据级别（全文页/题录级/未核）」
+    files:
+      - path: 20-lit/25-citation-audit.md
+        contains: ["机制承载", "部分支持", "不支持", "未核"]
+        min_matches: { pattern: "^\\|\\s*\\d+", min: 15 }
+    json_files:      # 审计只对已引条目负责 → 库本身必须逐条字段完整
+      - path: 20-lit/22-refs.json
+        min_items: 20
+        require_keys_all: ["ref_no", "authors", "title", "journal", "year", "doi",
+                           "grade", "verify_checks", "two_source_verified", "local_pdf"]
+  - task: task-presubmit-review      # AC「问题分级 CRITICAL/MAJOR/MINOR 且定位到原文」
+    files:
+      - path: 50-review/50-review-report.md
+        contains: ["CRITICAL", "MAJOR", "MINOR"]
+        min_matches: { pattern: "CRITICAL|MAJOR|MINOR", min: 10 }
+  - task: task-finalize-manuscript   # AC「在 51-response-to-review.md 逐条给处置与依据」
+    files:
+      - path: 50-review/51-response-to-review.md
+        contains: ["CRITICAL", "MAJOR"]
+  - task: task-ingest-sem-tem-figures # AC「标尺与放大率与元数据一致」（放大率以 kx 记，原图实测）
+    files:
+      - path: 40-figures/raster/manifest.md
+        min_matches: { pattern: "\\d+\\s*kx", min: 20 }
+  - task: task-sync-figure-specs-sem-tem # AC「规格与骨架的图表清单一致，无幽灵图号」
+    files:
+      - path: 40-figures/40-figure-specs.md
+        min_matches: { pattern: "Fig\\.?\\s*\\d+", min: 10 }
+  - task: task-latex-build           # AC「文件头标注 GENERATED」「refs.bib 与 37 编号一一对应」
+    files:
+      - path: 60-latex/manuscript/manuscript.tex
+        contains: ["GENERATED"]
+      - path: 60-latex/manuscript/refs.bib
+        min_matches: { pattern: "@[a-z]+\\{", min: 20 }
+  - task: task-back-matter           # 基类 AC「CRediT 逐人映射 / Conflict of Interest / Data Availability Statement」
+    files:
+      - path: 30-manuscript/39-back-matter.md
+        contains: ["CRediT", "Data Availability", "Conflict of Interest"]
 
 # 规范依赖图（P0–P6 顺序铁律：框架 → 文献 → 撰写）。生成器按此写入 depends_on。
 depends:

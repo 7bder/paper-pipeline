@@ -32,7 +32,11 @@ modules:
 
 # 通用证据口径（所有学科继承；领域档只覆盖与本学科不同的键）
 evidence_policy:
-  unit_source: "唯一数据源 = 项目 data/（含 .provenance），不得引入项目外数据"
+  # 基类不写字面 `data/`（与本 skill 的编号目录规范 `10-data/` 冲突）。此处给 `{data}` 占位，
+  # 由领域档用自己的 paths.data 覆盖成具体路径——因为生成器只对任务规格做占位替换，
+  # 不替换 evidence_policy（见 30-gen-proposals.py 的 rules_fragment / policy_lines），
+  # 领域档漏覆盖就会在 rules.fragment.md 里留下未解析的 `{data}`，由 78-assertions-selftest.py 拦下。
+  unit_source: "唯一数据源 = 项目 {data}/（含 .provenance），不得引入项目外数据"
   missing_data: "缺失数据不补点、不外推；图件与正文均须显式标注该缺口"
   hedging_required: ["单点测量的结论", "文献机制归因", "由相关性推出的因果"]
   baseline_required: "所有性能 claim 必须指明参照系（裸基材/对照实验/baseline 模型/历史对照）；无参照系的'提升/降低/更优'措辞禁止"
