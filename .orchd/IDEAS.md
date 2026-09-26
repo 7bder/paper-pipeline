@@ -36,5 +36,5 @@
 ## 2026-09-26 断言词项出处白名单机检：每条 contains/require_keys 须能回指本任务 AC、references 字段表或英文分节名（id: assertion-token-provenance-guard）
 - status: study
 - id: assertion-token-provenance-guard
-- 论证: 本轮 code 审查手工做过一次全量核对（20 任务全部词项），命中 24 处词项不在本任务 AC 字面内，其中 23 处合法（跨档引用 references/30 的 ref_no/two_source_verified、英文分节名 Materials/Introduction、01-meta.json 键名），1 处为真缺陷（task-citation-audit 的「机制承载」是从 task-lit-fulltext-inventory 借来的分层用语，AC 里没有，已在 88ddf2c 删除）。手工核对不可复用，故值得机器化：给 profile 每条断言加  标注（本档 AC / references/NN:行 / 英文分节名枚举），由 scripts/78 校验 source 指向的文本确实含该词项；无 source 视为违规。风险：白名单机制本身可能变成新的空转装饰，须配一条反向对照（把 source 指向不含该词的位置，78 必须变红）。
+- 论证: 本轮 code 审查手工做过一次全量核对（20 任务全部词项），命中 24 处词项不在本任务 AC 字面内，其中 23 处合法（跨档引用 references/30 的 ref_no/two_source_verified、英文分节名 Materials/Introduction、01-meta.json 键名），1 处为真缺陷（task-citation-audit 的「机制承载」是从 task-lit-fulltext-inventory 借来的分层用语，AC 里没有，已在 88ddf2c 删除）。手工核对不可复用，故值得机器化：给 profile 每条断言加 `token_source:` 标注（本档 AC / references/NN:行 / 英文分节名枚举），由 scripts/78 校验 source 指向的文本确实含该词项；无 source 视为违规。风险：白名单机制本身可能变成新的空转装饰，须配一条反向对照（把 source 指向不含该词的位置，78 必须变红）。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
