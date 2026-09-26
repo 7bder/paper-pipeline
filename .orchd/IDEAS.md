@@ -44,3 +44,9 @@
 - id: selftest-pairwise-shared-assertions
 - 论证: 实测（2026-09-27，task-profile-clinical 合并后）：scripts/78-assertions-selftest.py:300-309 的「共有任务断言逐字一致」是星形比较——base 取 sorted 首档，只与其余档求交集比对。两档时代交集为 20；新增 10-clinical.yaml 后 sorted 首档变成它，三档交集缩到 15，materials↔wbpu 独有的 5 个共有任务（task-analyze-data / task-ingest-sem-tem-figures / task-skeleton-contract / task-sync-figure-specs-sem-tem / task-write-experimental）不再做逐字比较，属新档落地带来的静默覆盖回退。探针量得三对交集 15/15/20、差异均 0（脚本 C:/tmp/probe_pairs.py）。修法：把 300-309 改为对 names 两两组合各自求交集并比对，打印按配对逐行列，标签「两档」随实际配对数改写；反向对照沿用现套路（删某档某共有任务的实质断言，全对版必须变红）。改动只在 scripts/78-assertions-selftest.py 单文件，不动 profile 与生成器。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-27 AC 引用路径与 files_to_read 的方向守卫（区分「比对对象」与「交叉引用」）（id: ac-path-declaration-guard）
+- status: study
+- id: ac-path-declaration-guard
+- 论证: 背景：task-profile-clinical 的 code 审查实测出一类会静默失效的声明缺口——AC 规定「与某文件不一致即判 CRITICAL」「按某文件的口径上收」，但该文件不在同任务的 files_to_read 里，agent 按声明读取面工作时根本拿不到比对对象。已修的那两处是 profiles/10-clinical.yaml:573/576（presubmit-review）与 :589/591（finalize-manuscript）。探针实测同类缺口三档共有：clinical 余 7 处、10-materials-chemistry.yaml 3 处（task-analyze-data 引 10-audit.md、task-claim-map 引 02-skeleton.md、task-assemble-draft 引 01-meta.json）、10-wbpu-kh550.yaml 6 处。关键设计点：必须先区分两类引用再上守卫，否则会把正当形态全判红——(a) 比对对象/口径来源（该任务要读它做判断）应要求 ∈ read∪edit；(b) 下游落点（「同一行口径须出现在 32-methods.md」）与交回上游（「数值变更须回到 11-analysis.md」）是指针性交叉引用，不该要求声明。可行的判据口径：按 AC 句子的谓语形态识别（含「与…不一致」「按…的口径」「以…为准」「核对」等判定动词者归 (a)），或退一步只对「同一任务 edit 之外且被 AC 带路径引用、同时该任务 depends_on 里也没有产出该文件的任务」这种无源引用判失败。落点建议放 scripts/78-assertions-selftest.py 新守卫段（与形状守卫同族），反向对照用「把已声明的 read 项删掉必须变红」+「正当交叉引用不得变红」两条。探针脚本可复用 C:/tmp/probe_ac_paths.py 的解析口径。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
