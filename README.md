@@ -106,7 +106,8 @@ paper-pipeline/
 │   ├── 30-literature-pipeline.md 定向文献流水线
 │   └── 40-draft-to-latex.md      md 真源 → LaTeX 装配
 ├── build/  build-paper2/     开发期生成物快照（paper1/paper2 profile 各跑一遍，可随时重生成）
-└── _pilot/                   paper2 试点证据（引擎登记主档等，非发货内容）
+├── _pilot/                   paper2 试点证据（引擎登记主档等，非发货内容）
+└── reports/                  本机审计档案（审查报告等，不入库，见 §发布边界）
 ```
 
 ## 与 orchd 的接法（唯一正确姿势）
@@ -149,6 +150,7 @@ paper-pipeline/
 |---|---|---|
 | `build/` `build-paper2/` | profile 生成物快照，供 diff | 重跑 `30-gen-proposals.py --out ...` |
 | `_pilot/` | paper2 试点 PASS 的实物证据 | 见其内 README |
+| `reports/` | 本机审计档案（09-26 审查报告等），只在执行机留存 | 见档案内文（不重建） |
 | `__pycache__/` | 无价值 | 已置 `sys.dont_write_bytecode`，不再生成 |
 
 两条已实测的边界纪律：

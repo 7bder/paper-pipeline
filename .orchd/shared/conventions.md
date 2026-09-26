@@ -31,14 +31,14 @@
 - 共享单写真源（`SKILL.md`、`README.md`、`CHANGELOG.md`、`profiles/00-base-empirical.yaml`）：同一时刻只允许一个在途任务改动，由 `request` 的冲突过滤保证；分解时不为"逻辑相关"而造依赖，只有**必须读上游产出**或**同文件**才写 `depends_on`。
 - 证据要求：报告"已修/已登记"必须给出 `file:line` 与生效机制链；判据类改动必须附反向对照（把判据拆掉后测试变红）。
 
-## 5. 提交与中断纪律（无 git 模式）
+## 5. 提交与中断纪律（git 工作树模式）
 
-- 本仓库非 git 仓库，改动以**快照差分**核算：任务开始时 `init` 已建快照根，done 时以快照比对判定越界。
+- 本仓库已纳入 git（远端 `7bder/paper-pipeline`）；改动以**任务分支 diff** 核算：引擎从 claim 时刻的 HEAD 建 `task/{id}` 分支，done/review 以该分支上的已提交改动判定越界。
 - 结束时工作区必须只剩本任务声明文件的改动（或有明确说明）；未提交即中断属红线 5。
-- 不手动跑 git 写操作（红线 1、2 在无 git 模式下等价于：不手改快照 manifest / `_ledger.jsonl` / `_checkpoint.json`）。
+- 不手动跑 git 写操作（红线 1、2）：一律走 `orchd git` 代理，唯一豁免 = 任务分支上的 `git commit`（见 `.orchd/rules/git.md`）；也不手改 `_master.json` / `_ledger.jsonl` / `_checkpoint.json`。
 
 ## 6. 发布边界
 
 - 入库：`SKILL.md`、`README.md`、`CHANGELOG.md`、`profiles/`、`references/`、`scripts/`、`assets/`、`static/`、`.gitignore`。
-- 不入库：`build*/`（生成试验）、`_pilot/`（历史试点证据，需要时重建）、`.orchd/` 引擎本体（仅 `_master.json`、`shared/`、`IDEAS.md`、`SKILL.md`、`rules/`、`VERSION`、`__main__.py` 跟踪）。
+- 不入库：`build*/`（生成试验）、`_pilot/`（历史试点证据，需要时重建）、`reports/`（本机审计档案，如 09-26 审查报告）、`.orchd/` 引擎本体（仅 `_master.json`、`shared/`、`IDEAS.md`、`SKILL.md`、`rules/`、`VERSION`、`__main__.py` 跟踪）。
 - 发布前实测：入库集合内机器路径/用户名命中数 = 0。

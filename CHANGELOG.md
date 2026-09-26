@@ -134,9 +134,25 @@
 
 ## D-14 技能本体自托管接入 orchd = 无 git 模式（2026-09-26，用户指定）
 
+> **已废止（2026-09-26 同日，见 D-15）**：本条「不为编排而 `git init`／无 git 模式」的决定已被取代——本仓已 `git init` 并推送远端 `7bder/paper-pipeline`。下方「代价（E030 降级放行）」随之作废（其前提 `not_a_git_repo` 已不成立）；本条的模块划分、任务清单、单写者事实与两条「事实更正」仍然有效。
+
 - **动作**：`git clone 7bder/orchd-core` → `python orchd-core/install.py . --agent --cleanup`（v1.5.0-1-g32b4192），BOOTSTRAP 产 `.orchd/_master.json`（**4 模块 / 12 任务**，`validate` errors=0，2 条 E022 属纯文档任务按拆解指南 §5.5.4 豁免），`init` 建模块 spec 与快照根。
 - **决策：不为编排而 `git init`**。宿主无 git 时引擎走 `orchd/nogit.py` 快照后端，claim/done 可用；基线快照在 **claim 时刻**建立（`orchd/onboard/claim.py:252-261`），故 BOOTSTRAP 期改根文档不会污染后续任务的越界判定。
 - **代价（实测）**：`request` 的 `degraded_guards` 报 `actual_changes_conflict / E030 = not_applicable (not_a_git_repo)`——在途改动冲突这条门禁降级放行；越界改动仍由 done 期快照差分兜。
 - **单写者文件**：`SKILL.md`/`README.md`/`CHANGELOG.md`/`scripts/75-verify-selftest.py` 被多任务共享声明，同一时刻只能有一个在途写者（由 `request` 冲突过滤保证），排期按"一次一个"看。
 - **事实更正**：本机 skills 目录现仅剩 `paper-pipeline/`——09-25 审查报告原件、`_paper-pipeline-pilot-vendor-20260926\`（旧引擎出仓副本）、`paper-pipeline - 副本\`（用户备份）、仓内 `_pilot/`、`build*/` 均已不在磁盘。引擎血统可从本机 orchd-core 克隆（git 仓库，tag v1.5.0 = 32b4192）重建，旧引擎副本不再唯一。
 - **二次更正（同日复核 N-7 时实测）**：上一条把 **`00-REVIEW-2026-09-26.md` 也一并判为消失，是错的**——它一直在本仓根目录（148 行 / 19,585 B，mtime 09-26 04:10），当时只检索了父目录。真正消失的只有 `00-REVIEW-2026-09-25.md`。教训：**判"文件不存在"必须在本目录与祖先目录都查**，否则会把活的必读件登记成死档（本轮已因此回改 4 个任务的 `files_to_read`）。附带实测：本机 VibeCoding 根目录全盘 `*REVIEW*2026-09-25*` 检索无果 ✓；`.gitignore:9-10` 曾指向已不存在的 vendor 副本路径（悬空引用，属 N-7/N-8 家族；该注释已于同日改述为 orchd-core 血统来源，不再指向该路径）。
+
+## D-15 本仓纳入 git 版本控制（2026-09-26，用户指定；取代 D-14 的「无 git 模式」）
+
+- **动作**：本仓 `git init` → 建远端 **`7bder/paper-pipeline`（public）** → 首推 `main`。基线提交 `35539ec`（39 项跟踪面）；随后 `9a45200` 清理根文档与 `.gitignore` 的本机绝对路径泄漏。跟踪面 = 交付面（`SKILL.md`/`README.md`/`CHANGELOG.md`/`ROADMAP.md`/`AGENTS.md`/`profiles/`/`references/`/`scripts/`/`assets/`/`docs/`）+ `.orchd/` 契约面 18 项（`_master.json`/`shared/`/`rules/`/`SKILL.md`/`IDEAS.md`/`VERSION`/`__main__.py`，按 `.orchd/.gitignore` 豁免表）。
+- **引擎随之切模式**：由 `orchd/nogit.py` 快照后端切到 **git 工作树模式**。D-14 记录的「代价」——`request` 的 `actual_changes_conflict / E030 = not_applicable (not_a_git_repo)` 降级放行——**随之作废**（其前提「非 git 仓库」已不成立）；红线 #1/#2 由 `orchd git` 代理强制，唯一豁免 = 任务分支上的 `git commit`（`.orchd/rules/git.md:26`）。
+- **被取代范围（仅 D-14 一条）**：「不为编排而 `git init`」及其代价段作废；D-14 的模块划分、任务清单、单写者文件事实、两条「事实更正」仍然有效。
+- **本机档案口径（用户裁定「认下本机档案即可」）**：`00-REVIEW-2026-09-25.md` 确已丢失（本机全盘 `*REVIEW*2026-09-25*` 检索无果），**不追补**——本机档案按现状认下，证据链缺口以本 CHANGELOG 记录代替原件。
+- **`00-REVIEW-2026-09-26.md` 移入 `reports/`（不入库）**：文件由仓根移至 `reports/00-REVIEW-2026-09-26.md`；`reports/` 已入 `.gitignore`（"本机审计档案"段），**不随技能发货**。文档侧同步登记为不入库项：`README.md` §目录结构 + §发布边界表、`.orchd/shared/conventions.md` §6。
+- **残留（已知、不阻断；改不改待用户定夺）**：6 个任务的 `files_to_read` 仍写移动前的根路径 `00-REVIEW-2026-09-26.md`——`task-verify-encoding-and-manifest-path`、`task-gen-cli-flags-and-p1-guard`、`task-profile-substantive-assertions`、`task-root-docs-drift-fix`、`task-verify-manifest-shape-guards`、`task-archive-refs-and-register`。
+  - **不阻断的依据（已核代码）**：引擎**不校验 `files_to_read` 的存在性**——`orchd/split.py:1066` 的存在性告警只覆盖 `files_to_edit` / `exempt_files`；claim 只把 `files_to_read` 当阅读指南透传（`orchd/onboard/claim.py:739`）。
+  - **未改写的原因**：唯一合法通道 `amend --files-to-read` 是**整体覆写**，条目一律降为 `priority=reference` 且**丢弃 `hint`**（`orchd/cli/commands/control.py:582-587`；`must_read` 只走 `--register` 提案，而 `--register` 遇已存在 id 即 E007）。改写会一次丢掉这 6 个任务**全部**条目的阅读提示（含指向 `70-verify.py` 等大文件的行号提示），得不偿失；直接手改 `_master.json` 违红线（`.orchd/rules/git.md:64`、`.orchd/SKILL.md` MUST NOT 3/9）。
+  - **认领时的解析口径**：把该路径解析到 `reports/00-REVIEW-2026-09-26.md`（报告 148 行，读全文即可，行号提示的边际价值低）。
+- **附带修复（引擎快照漂移，已实测）**：`.orchd/mod-*/spec.json` 快照落后账本——账本 16 任务、快照仅 12（缺 `task-capability-registry-flip`、`task-verify-manifest-shape-guards`、`task-archive-refs-and-register`、`task-profile-social-science`），且 4 个存量任务的 `files_to_read` 快照版本早于账本（hint 无行号，如 `task-verify-encoding-and-manifest-path` 快照为「N-1 / N-5 的复现条件…」而账本为「L65 N-1（cp936…）」）。因快照是 amend 的 diff 基线，落后会使这批任务被误判为「新增」而触发「新增任务缺 `source`」阻断。已用 `init` 重生成（ledger 为空，`init` 前置守卫放行），实测快照 4/3/5/4 = **16 任务**，与账本对齐。
+- **附带实测（未改）**：`.orchd/_master.json` 中 4 个后加任务无 `source` 字段——`validate` 因「无 source 直接通过（向后兼容存量）」不报错；快照对齐后它们成为存量任务，同样豁免。补 `source` 无 CLI 通道（`amend --task` 不支持 `--source`），暂不处理。

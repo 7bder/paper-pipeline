@@ -54,7 +54,8 @@ profiles/<domain>.yaml ──┐
 ## 5. 引擎接入事实（2026-09-26）
 
 - 引擎：orchd v1.5.0（vendor 于 `.orchd/`，安装器 `--agent --cleanup`）。
-- 本工作空间**不是 git 仓库**；引擎走**无 git 模式**（`orchd/nogit.py` 快照后端，`init` 已备好快照根），
-  claim/done 直接可用，不需要 `git init`。红线 #1（禁手动 git 写）在快照后端下同样成立。
+- 本工作空间**已纳入 git 版本控制**（远端 `7bder/paper-pipeline`，`main` 分支）；引擎走 **git 工作树模式**，
+  claim/done 直接可用。红线 #1/#2（禁手动 git 写）在 git 模式下由 `orchd git` 代理强制（唯一豁免 =
+  任务分支上的 `git commit`，见 `.orchd/rules/git.md`）。D-14 曾按「无 git 模式」接入，该决定已由 D-15 取代。
 - `SKILL.md` 是**单写者文件**：同一时刻只允许一个 claimed 任务把它列入 `files_to_edit`，
   冲突由引擎在 `request` 期硬过滤，拆解期不为此额外造依赖边。
