@@ -14,7 +14,9 @@
         ② 其余文件里的行首 [n] 改按**引用**处理（条目源唯一化后不允许第二处声明编号，否则两处文献表
         各自编号会互相打脸）。不给时：所有输入里的行首 [n] 都是条目行。
       --budget FILE：YAML，顶层 budget 映射 {节名: [lo, hi]}；区间语义与 70-verify 的 word_count
-        同口径（两元整数、含端点、词按空白切分）。
+        同口径（两元整数、含端点、词按空白切分）。给目录直接 rc=2 说清是目录（不落成「不是合法 YAML」
+        那种把读者往错方向引的措辞）；两个键规范化后同名（`Methods` 与 `3. Methods`）也 rc=2——
+        静默覆盖会变成「配了两条、实检一条」，而汇总里的预算项数还是诚实的，读者无从起疑。
 
 四类判据（每条都写清「什么算命中」与「为什么不静默」）：
   1 引用编号 ↔ 文献表：正文 `[n]` / `[n,m]` / `[n-m]` 展开为引用号集合；行首 `[n]` 为条目行
@@ -22,12 +24,19 @@
       条目从未被引用（AC2）。**一个条目都找不到时返 rc=2**，不静默按「零条目零命中」通过——
       文献表换了格式（`- [1] ...`、`\\bibitem`）时静默通过等于宣布检查①绿了。
       条目号重复、区间反序、区间宽于 500 均计入 rc=2 面（疑似笔误，不猜作者要哪个）。
+      **形似引用而正则不吃的括号标记也计入 rc=2**：`[ 2 ]`、`[1,]`、`[1-]`、`［２］`、`[1、2]` 若静默
+      放过，就是「那条引用根本没参与检查①」而报告照样打绿（expand_cite 里「引用标记无法解析」那条
+      兜底走不到：对 CITE_RE 的全体可达输入穷举过，零命中，所以另开这条面）。判据是「逗号分出的每段
+      都像编号或区间」，因此 md 链接、脚注 `[^1]`、数学区间 `[-1, 2]`、`[0.5, 1.0]`、`[a1]` 都不算
+      （含小数点/字母/负号即否掉），判成引用笔误属假阳性。
   2 图表编号 ↔ 正文提及：图注/表注 = 行首的 `Fig. 1.` / `Table 2:` / `图 1 —` 形态（数字后紧跟
       分隔符），正文提及 = 全文任何 `Fig./Figure/Figs/Table/Tab/图/表 + 数字`。图注自身不算对
       自己的提及（否则「声明未被提及」永不触发）。两个方向都报：有注无提及（AC3，列编号与声明所在
       产物行号）、有提及无注（悬空交叉引用，同一族的另一侧）。
       边界：`表 1 不同温度……`（数字后是空格）只算**提及**不算图注——反过来会把真图注判成漏检，
       方向危险；该形态若确是图注，会以「悬空提及」上屏，作者补分隔符即消。
+      编号按 1–999 建模，四位及以上（`Fig. 1000`、`表 2020`）两侧正则都收不到，静默 rc=0 等于宣布
+      检查②绿了 → 计入 rc=2 面并给三条出路（换制式 / 改笔误 / 指年份就写「2020 年」）。
       编号**连续性**（缺 Fig. 2）不在本脚本，属 `72-latex-build-check.py` 的 PDF 回读面。
   3 术语归一：只判**同一术语两种写法共存**，不判哪种对——所以不需要外置词表，也不会因词表缺项而静默。
       两类结构式：① 百分号前的空格（`wt%` 与 `wt %` 共存）；② 下标写法（`CO2` 与 `CO_2`/`CO_{2}`
@@ -88,6 +97,14 @@ CAPTION_RE = re.compile(r"^[ \t]*(?:\*\*|__)?[ \t]*(" + FIG_TOKENS + r")[ \t]*\.
 PCT_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z][A-Za-z0-9]{1,})[ \t]?%")
 SUB_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{1,})_?\{?([0-9]{1,3})\}?(?![0-9A-Za-z])")
 SEC_NUM_PREFIX_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)*[.)]?[ \t]*")
+# 编号位数上限之外的形态：CITE_RE 太窄，坏标记根本进不了解析器（实测「引用标记无法解析」那条
+# 兜底分支对 CITE_RE 的全体可达输入零命中），所以另开一条「像引用但不是」的面来上屏。
+LOOKALIKE_RE = re.compile(r"[\[［]([^\[\]［］\n]{0,24})[\]］]")
+DIGIT_ANY_RE = re.compile(r"[0-9０-９]")
+NUM_PIECE_RE = re.compile(r"[0-9０-９]+(?:[ \t]*[-–][ \t]*[0-9０-９]+)?")
+OPEN_NUM_RE = re.compile(r"[0-9０-９]+[ \t]*[-–]")
+# 图/表编号按 1–3 位建模；更长的数字既进不了 CAPTION_RE 也进不了 MENTION_RE，必须点名而不是静默。
+OVERLONG_RE = re.compile(r"(?<![A-Za-z])(" + FIG_TOKENS + r")[ \t]*\.?[ \t]*([0-9]{4,})")
 
 
 # ---------- 分段与输入 ----------
@@ -208,8 +225,40 @@ def expand_cite(inner, display, lineno, errors):
         elif part.isdigit():
             nums.append(int(part))
         else:
+            # 对 CITE_RE 的全体可达输入穷举过：这条走不到。留着是因为解析面在正则之外，
+            # 一旦正则放宽，缺了它就变成「不认识的标记静默不算引用」——那正是本脚本要堵的洞。
             errors.append("引用标记无法解析：%s:%d 的 [%s]" % (display, lineno, inner))
     return nums
+
+
+def _looks_like_num_list(inner):
+    """括号内容是否「像编号列表」：含数字，且逗号分出的每段都是编号/区间（或悬空逗号、缺右端区间）。
+
+    判不成编号列表的（含字母、小数点、负号）不报：那是 markdown 链接、脚注或数学区间
+    （`[-1, 2]`、`[0.5, 1.0]`），把它们判成引用笔误是假阳性。
+    """
+    if not DIGIT_ANY_RE.search(inner):
+        return False
+    for piece in re.split(r"[,，、]", inner):
+        p = piece.strip()
+        if not p or OPEN_NUM_RE.fullmatch(p):
+            return True
+        if NUM_PIECE_RE.fullmatch(p):
+            continue
+        return False
+    return True
+
+
+def cite_lookalikes(txt, display, lineno, errors):
+    """CITE_RE 没吃掉、但形态像引用的括号标记一律上屏（不静默免扫）。"""
+    valid = set(txt[m.start():m.end()] for m in CITE_RE.finditer(txt))
+    for m in LOOKALIKE_RE.finditer(txt):
+        token = txt[m.start():m.end()]
+        if token in valid or not _looks_like_num_list(m.group(1)):
+            continue
+        errors.append("引用标记不合口径：%s:%d 的 %s（只认半角 [n] / [n,m] / [n-m]；"
+                      "全角括号、括号内空格、悬空逗号、缺右端的区间都不参与检查①）"
+                      % (display, lineno, token))
 
 
 def check_refs(docs, refs_display):
@@ -236,6 +285,7 @@ def check_refs(docs, refs_display):
             for c in CITE_RE.finditer(txt):
                 for n in expand_cite(c.group(1), display, idx, errors):
                     cites.append((n, display, idx))
+            cite_lookalikes(txt, display, idx, errors)
     stats = {"entries": len(entries), "cites": len(cites), "missing": 0, "uncited": 0}
     if not entries:
         errors.append("未找到编号制文献表条目（行首 [n]）：检查①无法进行。"
@@ -281,6 +331,12 @@ def check_figures(docs):
                 body = txt[cap.end():]
             for m in MENTION_RE.finditer(body):
                 mentioned.setdefault((KIND_OF_TOKEN[m.group(1)], int(m.group(2))), (display, idx))
+            # 编号位数之外：CAPTION_RE/MENTION_RE 的 [0-9]{1,3} 会让四位以上整体失明，
+            # 静默 rc=0 就是「检查②绿了」的假信号，所以宁可判成输入不合口径。
+            for m in OVERLONG_RE.finditer(txt):
+                errors.append("图/表编号超出 1–999 口径：%s:%d 的 %s（本脚本按 1–3 位编号建模；"
+                              "若确是超大编号请换制式，若是笔误请改正，若指年份请写成「2020 年」以免歧义）"
+                              % (display, idx, m.group(0).strip()))
     for key in sorted(set(declared) - set(mentioned)):
         display, idx = declared[key]
         hits.append((display, idx, "fig-uncited",
@@ -360,6 +416,10 @@ def sections_of(docs):
 
 def load_budget(path):
     """--budget 的 schema 校验。返回 (budget|None, errors)；errors 非空即 rc=2。"""
+    if os.path.isdir(path):
+        # 不给这条就会掉进 open(dir) 的 PermissionError，被下面的兜底说成「不是合法 YAML」——
+        # 那是把读者往错方向引（实测 Windows 下目录报的是 Errno 13）。
+        return None, ["预算配置须是单个文件（实际是目录）：%s" % path]
     if not os.path.exists(path):
         return None, ["预算配置文件不存在：%s" % path]
     try:
@@ -390,7 +450,14 @@ def load_budget(path):
         if val[1] < val[0]:
             errors.append("%s 区间反序：%r" % (where, list(val)))
             continue
-        out[norm_title(key)] = (val[0], val[1], key)
+        normed = norm_title(key)
+        if normed in out:
+            # 撞车必须死在这里：静默覆盖会让「配了两条、实检一条」变成假绿，
+            # 而汇总里的预算项数还是诚实的，读者无从起疑。
+            errors.append("%s 与 budget[%r] 规范化后同为 %r：两条预算只有一条会参与判定"
+                          % ("budget[%r]" % (out[normed][2],), key, normed))
+            continue
+        out[normed] = (val[0], val[1], key)
     return out, errors
 
 
@@ -484,7 +551,9 @@ def emit(rendered, stats, errors):
              figs.get("caps", 0), figs.get("mentions", 0), figs.get("uncited", 0),
              figs.get("dangling", 0),
              terms.get("candidates", 0), terms.get("mixed", 0),
-             "④节 %s / 预算项 %s" % (budget["sections"], budget["items"]) if budget
+             # 用 is not None 而非真值判断：给了配置但全部键不合格时 budget 是空映射，
+             # 那时打「④未执行（未给 --budget）」是在说谎——它执行了，只是什么都没得查。
+             "④节 %s / 预算项 %s" % (budget["sections"], budget["items"]) if budget is not None
              else "④未执行（未给 --budget）"))
     if rendered:
         print("提示：命中即不一致，不存在「保留哪一种都对」。编号与格式按 references/40-draft-to-latex.md"
@@ -655,6 +724,22 @@ def run_selftest():
         _st_write("dup_entry.md", ["Cite [1].", "[1] A.", "[1] B."])
         rc, out, errb = cap(["dup_entry.md"])
         check("条目号重复 → rc=2 并报出两处行位", (rc, "文献表条目号重复" in errb), (2, True))
+        # D-1：CITE_RE 只认三种半角形态，其余「像引用」的括号标记根本进不了解析器
+        # （expand_cite 的兜底分支对 CITE_RE 全体可达输入穷举过，零命中）→ 必须另开一条面。
+        for i, (mark, why) in enumerate((("[ 2 ]", "括号内空格"), ("[1,]", "悬空尾逗号"),
+                                         ("[, 1]", "悬空首逗号"), ("［２］", "全角括号与数字"),
+                                         ("[1、2]", "顿号分隔"), ("[1-]", "区间缺右端"))):
+            _st_write("lookalike%d.md" % i, ["Body cites [1] and %s." % mark, "[1] A. Author."])
+            rc, out, errb = cap(["lookalike%d.md" % i])
+            check("D-1 %s 不合口径的引用标记必须上屏（不得静默 rc=0）" % why,
+                  (rc, "引用标记不合口径：lookalike%d.md:1 的 %s" % (i, mark) in errb), (2, True))
+        for i, (mark, why) in enumerate((("[-1, 2]", "数学区间含负号"), ("[0.5, 1.0]", "小数区间"),
+                                         ("[^1]", "脚注标记"), ("[a1]", "带字母的链接标签"),
+                                         ("[]", "空方括号"), ("[ ]", "任务清单复选框"))):
+            _st_write("benign%d.md" % i, ["Body cites [1] as in %s." % mark, "[1] A. Author."])
+            rc, out, errb = cap(["benign%d.md" % i])
+            check("D-1 反向对照 %s：不判成引用笔误（%s）" % (mark, why),
+                  (rc, "引用标记不合口径" in errb), (0, False))
         _st_write("no_entry.md", ["## 1. Introduction", "Nothing numbered here."])
         rc, out, errb = cap(["no_entry.md"])
         check("一个条目都没有 → rc=2 并指路 --refs（不静默按零命中通过）",
@@ -689,6 +774,16 @@ def run_selftest():
         _st_write("dup_cap.md", ["Fig. 1. A.", "see Fig. 1", "Fig. 1. B."])
         rc, out, errb = cap(["dup_cap.md"])
         check("图注编号重复 → rc=2", (rc, "图注编号重复" in errb), (2, True))
+        # D-2：编号按 1–999 建模，四位以上两侧正则都收不到 → 静默 rc=0 就是「检查②绿了」的假信号
+        _st_write("overlong.md", ["Fig. 1000. A four-digit caption.", "Table 9999. Another.",
+                                  "Body mentions Fig. 1000 and 表 2020 的数据 [1].", "[1] A."])
+        rc, out, errb = cap(["overlong.md"])
+        check("D-2 四位编号不得静默免扫：声明/提及/年份三种形态全部上屏",
+              (rc, errb.count("超出 1–999 口径"), "图注须以分隔符收尾" not in errb),
+              (2, 4, True))
+        _st_write("overlong_ok.md", ["Fig. 1. Caption.", "Mentions Fig. 1 of 2020 and 999 figures [1].",
+                                     "[1] A."])
+        check("D-2 反向对照：三位以内编号与裸年份不误判", cap(["overlong_ok.md"])[0], 0)
 
         # ---------- 术语归一（共存判据 + 两面排除） ----------
         t1 = _st_write("terms_pct.md", ["The sample is 20 wt% clean.", "Another reports 30 wt % pure."])
@@ -775,6 +870,16 @@ def run_selftest():
             check("预算配置 schema：%s → rc=2 且人类可读" % name, (rc, want in errb), (2, True))
         rc, out, errb = cap(["budget.md", "--budget", "nowhere.yaml"])
         check("预算配置不存在 → rc=2", (rc, "预算配置文件不存在" in errb), (2, True))
+        os.makedirs("budget_dir", exist_ok=True)
+        rc, out, errb = cap(["budget.md", "--budget", "budget_dir"])
+        check("D-4 --budget 给目录：rc=2 且话说清是目录（不许说成「不是合法 YAML」）",
+              (rc, "须是单个文件" in errb, "不是合法 YAML" in errb), (2, True, False))
+        collide = _st_write_raw("collide.yaml", "budget:\n  Methods: [8, 8]\n  3. Methods: [1, 1]\n")
+        rc, out, errb = cap(["nested.md", "--budget", collide])
+        check("D-3 规范化后同名的两个预算键 → rc=2 面点名（不静默二选一）",
+              (rc, "规范化后同为 'methods'" in errb), (2, True))
+        check("D-3 汇总里的预算项数只数真参与判定的那条（配两条、检一条，数字不说谎）",
+              "④节 4 / 预算项 1" in out, True)
 
         # ---------- --refs 口径 ----------
         _st_write("body.md", ["## 1. Introduction", "Cited [1]. Also 20 wt% here."])
