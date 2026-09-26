@@ -229,6 +229,7 @@
         }
       ],
       "files_to_edit": [
+        "references/60-capability-specs.md",
         "scripts/30-gen-proposals.py",
         "scripts/75-verify-selftest.py",
         "static/elsevier-numbered.md",
