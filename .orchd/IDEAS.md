@@ -26,3 +26,9 @@
 - id: deep-merge-list-per-task
 - 论证: 落点 scripts/30-gen-proposals.py:deep_merge（list 分支现只对 tasks/depends 例外）与 fill()/rules_fragment()。现状后果：①子档无法给继承任务追加实质断言（一重定义就清掉父档 20 条），故 10-wbpu-kh550 自有任务 origin-data-separation/supplement-decision 至今只有 forbid+min_bytes 通配；②基类 unit_source 改成 {data} 占位后无人替换（fill 只作用于任务规格），只能靠领域档整条覆盖 + scripts/78 两条守卫兜住漏覆盖。改造判据：子档写 - task: X / files: 追加时按 path 归并，同名 path 子档覆盖、父档其余保留；--regress A 类差异保持 0；78 正反控制与反向对照保持全绿并新增一条子档追加断言的用例。风险：合并语义变了会影响既有 paper2+ 档的显式覆盖意图，需在 CHANGELOG 留决策。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-26 通配 forbid(AUTHOR CONFIRM) 与写作分节的人工闸门标记冲突，需裁定豁免面（id: wildcard-forbid-vs-author-marker）
+- status: study
+- id: wildcard-forbid-vs-author-marker
+- 论证: 现网事实：profiles/10-materials-chemistry.yaml 的 task:'*' + apply_to: edit_files_text 通配对所有文本产物禁 AUTHOR CONFIRM，而工作流要求写作分节在合稿前保留 AUTHOR CONFIRM 待作者裁定——paper1 的 31-introduction/32-experimental/33-results-discussion 三个分节均含该标记，脚本 78 --project paper1 已把它显式报成 INFO 3 处。后果：任何新项目的 task-write-* done 门禁在作者未裁定时会 FAIL，而 FAIL 正是它该做的事（逼裁定），除非我们改为豁免分节文件。三条候选：①通配保持不动，把裁定推迟到 task-assemble-draft（现状，代价是写作任务在闸门未开时不可 done）；②apply_to 排除 30-manuscript/sections/*，只禁 36-draft 之后的产物；③给写作任务专用 forbid 集（只禁 TODO）。需作者裁定取哪条，裁定后 78 的回放 INFO 应转为对应口径的断言。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
