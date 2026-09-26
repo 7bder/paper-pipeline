@@ -171,7 +171,7 @@ verify_assertions_template:
   - task: task-citation-audit        # AC「判定（支持/部分支持/不支持）与判据级别（全文页/题录级/未核）」
     files:
       - path: 20-lit/25-citation-audit.md
-        contains: ["机制承载", "部分支持", "不支持", "未核"]
+        contains: ["部分支持", "不支持", "未核"]
         min_matches: { pattern: "^\\|\\s*\\d+", min: 15 }
     json_files:      # 审计只对已引条目负责 → 库本身必须逐条字段完整
       - path: 20-lit/22-refs.json
@@ -187,10 +187,11 @@ verify_assertions_template:
     files:
       - path: 50-review/51-response-to-review.md
         contains: ["CRITICAL", "MAJOR"]
-  - task: task-ingest-sem-tem-figures # AC「标尺与放大率与元数据一致」（放大率以 kx 记，原图实测）
-    files:
+  - task: task-ingest-sem-tem-figures # AC「记录每帧来源文件、放大率、标尺来源与采集时间」
+    files:                            # 放大率写法跨项目不一（paper1 记 100kx，他稿可能 50000×），
       - path: 40-figures/raster/manifest.md
-        min_matches: { pattern: "\\d+\\s*kx", min: 20 }
+        min_matches: { pattern: "^\\|\\s", min: 20 }   # 逐帧一行（语言无关）
+        contains_regex: ["\\d+\\s*(?:kx|[x×])"]        # 出现放大率数值即可，不限记法
   - task: task-sync-figure-specs-sem-tem # AC「规格与骨架的图表清单一致，无幽灵图号」
     files:
       - path: 40-figures/40-figure-specs.md

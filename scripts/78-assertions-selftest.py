@@ -96,6 +96,18 @@ def substantive_ids(frag: dict) -> list:
     return sorted(out)
 
 
+def substantive_entries(frag: dict) -> int:
+    """实质断言**条目**数（一个任务可有多条）；下限门禁比的是任务数，两者都要报，
+    否则读者会把 20 个任务误读成 20 条断言（实测条目 27）。"""
+    n = 0
+    for tid in substantive_ids(frag):
+        e = frag[tid]
+        n += sum(1 for f in e.get("files", []) if any(k in f for k in FILE_SUBSTANTIVE))
+        n += len(e.get("json_files", []) or [])
+        n += 1 if e.get("run") else 0
+    return n
+
+
 def floor_ok(frag: dict, floor: int = FLOOR) -> bool:
     return len(substantive_ids(frag)) >= floor
 
@@ -140,9 +152,9 @@ def run_floor_guards() -> int:
                  if not any(e.get(k) for k in ("files", "json_files", "globs", "absent_paths"))
                  and not e.get("run")]
         ok = n >= FLOOR and not empty and not problems
-        print("  %-28s 任务=%-3d 实质条目=%-3d(≥%d) 空断言任务=%d 生成 problems=%d  %s"
-              % (prof.name, len(frag), n, FLOOR, len(empty), len(problems),
-                 "OK" if ok else "MISMATCH"))
+        print("  %-28s 任务=%-3d 实质任务=%-3d(≥%d) 实质条目=%-3d 空断言任务=%d 生成 problems=%d  %s"
+              % (prof.name, len(frag), n, FLOOR, substantive_entries(frag), len(empty),
+                 len(problems), "OK" if ok else "MISMATCH"))
         for p in problems[:4]:
             print("      problem: %s" % p)
         if not ok:
@@ -187,7 +199,7 @@ def run_shape_guards() -> int:
                                        and all(isinstance(x, int) and x > 0 for x in wc)
                                        and wc[0] < wc[1]):
                             cases.append(("%s %s: word_count 区间" % (tid, p), str(wc)))
-                        for t in item.get("contains", []) + item.get("forbid", []):
+                        for t in (item.get("contains") or []) + (item.get("forbid") or []):
                             if not isinstance(t, str) or not t.strip():
                                 cases.append(("%s %s: contains/forbid 有空或非字符串项" % (tid, p), repr(t)))
             if "run" in a:
@@ -312,7 +324,7 @@ def plan_artifacts(frag: dict):
         for f in e.get("files", []):
             d = texts.setdefault(f["path"], {"tokens": set(), "probes": [], "bytes": 0,
                                               "lo": 0, "hi": None, "pads": []})
-            d["tokens"] |= {t for t in f.get("contains", [])}
+            d["tokens"] |= set(f.get("contains") or [])
             d["bytes"] = max(d["bytes"], f.get("min_bytes", 0) or 0)
             if "min_matches" in f:
                 d["probes"].append((f["min_matches"]["pattern"], f["min_matches"]["min"]))
@@ -385,7 +397,8 @@ def write_sandbox(root: pathlib.Path, texts: dict, jsons: dict, globs: list) -> 
 
 
 def run_verify(root: pathlib.Path, manifest: pathlib.Path, tid: str):
-    r = subprocess.run([sys.executable, "-X", "utf8", str(VERIFY), tid, "--quiet",
+    # -B：conventions §2 要求跨进程调用不落 .pyc
+    r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(VERIFY), tid, "--quiet",
                         "--root", str(root), "--manifest", str(manifest)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, (r.stdout or "") + (r.stderr or "")
@@ -465,7 +478,7 @@ def run_reverse_guards() -> int:
         bites = not floor_ok(stripped)
         still_gated = bool(stripped[tid].get("files") or stripped[tid].get("json_files"))
         ok = bites and still_gated
-        print("  %-34s 删后=%d 门禁失败=%s 通配仍覆盖=%s  %s"
+        print("  %-34s 删后实质任务=%d 门禁失败=%s 通配仍覆盖=%s  %s"
               % (tid, len(substantive_ids(stripped)), bites, still_gated, "OK" if ok else "MISMATCH"))
         if not ok:
             bad += 1
@@ -531,7 +544,7 @@ def run_project_replay(project: pathlib.Path) -> int:
                 bad += 1
                 print("  FAIL  %-34s rc=%d\n        %s"
                       % (tid, rc, out.strip().replace("\n", " | ")[:400]))
-        print("  实质断言回放：PASS=%d FAIL=%d SKIP=%d（共 %d 条实质条目）"
+        print("  实质断言回放：PASS=%d FAIL=%d SKIP=%d（共 %d 个实质任务）"
               % (passed, bad, skipped, len(sub)))
     hits = []
     for tid, e in frag.items():
