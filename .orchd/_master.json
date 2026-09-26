@@ -45,7 +45,9 @@
       "estimated_hours": 3,
       "importance": "critical",
       "difficulty": "medium",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "以引擎强制形态 python scripts/70-verify.py <task-id>（不带 -X utf8）在 PYTHONIOENCODING=gbk 下跑一条含 ✅ 的 FAIL 断言，stdout 打全 FAIL 明细、退出码为 1、stderr 无 UnicodeEncodeError",
         "同一形态下 --json 输出仍可被 json.loads 完整解析（不出现半截 JSON）",
@@ -55,12 +57,31 @@
         "python -X utf8 scripts/75-verify-selftest.py 退出码 0"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L65 N-1（cp936 崩溃复现命令与 stdout 截断证据）、L67 N-5（--manifest 二次拼接）原文；L143 附录 A 是 N-1 的复现配方（本轮实测：本机连 PYTHONIOENCODING 都不必设，默认管道即触发）"},
-        {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §遗留 ②③ 是这两条发现的档位归属记录（原文以报告为准）"},
-        {"path": "scripts/75-verify-selftest.py", "priority": "must_read", "hint": "既有守卫套件与退出码语义守卫的写法样板"},
-        {"path": "SKILL.md", "priority": "reference", "hint": "判据基座小节：断言类型集合与退出码口径不得回退"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L65 N-1（cp936 崩溃复现命令与 stdout 截断证据）、L67 N-5（--manifest 二次拼接）原文；L143 附录 A 是 N-1 的复现配方（本轮实测：本机连 PYTHONIOENCODING 都不必设，默认管道即触发）"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "reference",
+          "hint": "D-13 §遗留 ②③ 是这两条发现的档位归属记录（原文以报告为准）"
+        },
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "must_read",
+          "hint": "既有守卫套件与退出码语义守卫的写法样板"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "reference",
+          "hint": "判据基座小节：断言类型集合与退出码口径不得回退"
+        }
       ],
-      "files_to_edit": ["scripts/70-verify.py", "scripts/75-verify-selftest.py"],
+      "files_to_edit": [
+        "scripts/70-verify.py",
+        "scripts/75-verify-selftest.py"
+      ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
     {
@@ -68,11 +89,15 @@
       "name": "生成器 CLI 口径与 P-1 依赖守卫",
       "brief": "统一 30-gen-proposals.py 的 --regress/--check 口径（缺 --project 不再静默 rc=0、docstring 与 argparse 一致），并为基类 P-1 注入对 task-audit-data 的隐式假设加生成期守卫（N-4 / N-10）。",
       "module": "mod-judgment",
-      "depends_on": ["task-verify-encoding-and-manifest-path"],
+      "depends_on": [
+        "task-verify-encoding-and-manifest-path"
+      ],
       "estimated_hours": 3,
       "importance": "high",
       "difficulty": "medium",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "--regress 或 --check 未同时给 --project 时退出码为 2、错误消息含缺失的参数名 project，且不落任何生成物（不得默默走 emit 写出 build/）",
         "30-gen-proposals.py 顶部 docstring 三条用法与 argparse 实际接受的旗标形态逐字一致，位置参数写法 --regress <目标项目> 在脚本内命中数为 0",
@@ -81,12 +106,31 @@
         "上述口径各进 1 条守卫，python -X utf8 scripts/75-verify-selftest.py 退出码 0"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4（三处文档形态失效 + M5/M5b/M6 实测）与 L69 N-10（P-1 注入假设）；L142 附录 A 给出 N-4 的复现命令"},
-        {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §遗留 ①④ 是这两条发现的档位归属记录（原文以报告为准）"},
-        {"path": "scripts/30-gen-proposals.py", "priority": "must_read", "hint": "N-10 现场：P-1 激活分支在 :234-237（entry_mode != multi-paper 即 return/跳过），此处对 task-audit-data 的存在性零校验；N-4 的 --regress/--check 参数解析在同一文件 main 段"},
-        {"path": "profiles/00-base-empirical.yaml", "priority": "must_read", "hint": "task-data-asset-mapping 的 P-1 注入语义与 entry.mode 关系"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L66 N-4（三处文档形态失效 + M5/M5b/M6 实测）与 L69 N-10（P-1 注入假设）；L142 附录 A 给出 N-4 的复现命令"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "reference",
+          "hint": "D-13 §遗留 ①④ 是这两条发现的档位归属记录（原文以报告为准）"
+        },
+        {
+          "path": "scripts/30-gen-proposals.py",
+          "priority": "must_read",
+          "hint": "N-10 现场：P-1 激活分支在 :234-237（entry_mode != multi-paper 即 return/跳过），此处对 task-audit-data 的存在性零校验；N-4 的 --regress/--check 参数解析在同一文件 main 段"
+        },
+        {
+          "path": "profiles/00-base-empirical.yaml",
+          "priority": "must_read",
+          "hint": "task-data-asset-mapping 的 P-1 注入语义与 entry.mode 关系"
+        }
       ],
-      "files_to_edit": ["scripts/30-gen-proposals.py", "scripts/75-verify-selftest.py"],
+      "files_to_edit": [
+        "scripts/30-gen-proposals.py",
+        "scripts/75-verify-selftest.py"
+      ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
     {
@@ -98,7 +142,10 @@
       "estimated_hours": 6,
       "importance": "critical",
       "difficulty": "high",
-      "requires": ["python", "yaml"],
+      "requires": [
+        "python",
+        "yaml"
+      ],
       "acceptance_criteria": [
         "wbpu 档生成的 verify_manifest 中，含 contains/contains_regex/min_matches/word_count/json_files/run 任一类实质断言的任务条目数 ≥ 8（26 任务中）",
         "task-citation-audit 条目含 json_files 断言，其 require_keys_all 覆盖 20-lit/22-refs.json 的必填字段集合",
@@ -108,11 +155,31 @@
         "基类 evidence_policy 的 unit_source 不再写死字面 data/，改用 {data} 占位；重生成后 rules.fragment.md 中该条出现的路径与本 skill 目录规范一致"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L64 是 N-6 原文（26 条断言逐条只有 forbid+min_bytes，实质断言数 = 0）；L98 给出修复口径二选一（按任务补实质断言 / README 降格表述），本任务取前者"},
-        {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-13 §第 5 档口径记录 N-6 排在待建脚本之前的先序理由"},
-        {"path": "references/20-claim-framework.md", "priority": "must_read", "hint": "引用落位机检 5 条与分层证据门限——实质断言该钉什么的判据来源"},
-        {"path": "references/30-literature-pipeline.md", "priority": "reference", "hint": "22-refs.json 字段归一口径"},
-        {"path": "scripts/75-verify-selftest.py", "priority": "reference", "hint": "自测套件的合成控制与 real: profile 加载写法，78 沿用其风格"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L64 是 N-6 原文（26 条断言逐条只有 forbid+min_bytes，实质断言数 = 0）；L98 给出修复口径二选一（按任务补实质断言 / README 降格表述），本任务取前者"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "reference",
+          "hint": "D-13 §第 5 档口径记录 N-6 排在待建脚本之前的先序理由"
+        },
+        {
+          "path": "references/20-claim-framework.md",
+          "priority": "must_read",
+          "hint": "引用落位机检 5 条与分层证据门限——实质断言该钉什么的判据来源"
+        },
+        {
+          "path": "references/30-literature-pipeline.md",
+          "priority": "reference",
+          "hint": "22-refs.json 字段归一口径"
+        },
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "reference",
+          "hint": "自测套件的合成控制与 real: profile 加载写法，78 沿用其风格"
+        }
       ],
       "files_to_edit": [
         "profiles/00-base-empirical.yaml",
@@ -127,11 +194,16 @@
       "name": "出版社规则碎片命中机制",
       "brief": "落地 static/ + manifest.yaml 四轴命中：碎片目录与命中清单入库，生成器按 profile 声明把命中的规则碎片刻进 rules.fragment.md，未声明时零回归。",
       "module": "mod-judgment",
-      "depends_on": ["task-gen-cli-flags-and-p1-guard"],
+      "depends_on": [
+        "task-gen-cli-flags-and-p1-guard"
+      ],
       "estimated_hours": 5,
       "importance": "normal",
       "difficulty": "medium",
-      "requires": ["python", "yaml"],
+      "requires": [
+        "python",
+        "yaml"
+      ],
       "acceptance_criteria": [
         "static/manifest.yaml 含 ≥3 个碎片条目，每条 axes 至少两项且键名只限于 paper_type/evidence_form/publisher/citation_style/language/reporting 六个，fragment 路径全部在磁盘存在",
         "profile 未声明 fragments 时，materials 档生成的 rules.fragment.md 与改动前逐字节一致（零回归）",
@@ -140,9 +212,21 @@
         "python -X utf8 scripts/75-verify-selftest.py 退出码 0 且新增守卫含上述否定条件一条"
       ],
       "files_to_read": [
-        {"path": "references/60-capability-specs.md", "priority": "must_read", "hint": "§3.2 manifest schema、§3.3 命中与注入算法（marker 格式/顺序/零回归/未知 id die）、§3.5 守卫三条——按此实现，勿照注册表一行自由发挥"},
-        {"path": "SKILL.md", "priority": "reference", "hint": "L106 profiles 体系四轴与「加一刊 = 加一个 profile 文件」「建成前靠 profile 覆盖」的既定口径"},
-        {"path": "scripts/30-gen-proposals.py", "priority": "must_read", "hint": "rules.fragment.md 的现有装配点（rules_fragment 定义于 :285，写出 :376），碎片注入挂此处"}
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "must_read",
+          "hint": "§3.2 manifest schema、§3.3 命中与注入算法（marker 格式/顺序/零回归/未知 id die）、§3.5 守卫三条——按此实现，勿照注册表一行自由发挥"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "reference",
+          "hint": "L106 profiles 体系四轴与「加一刊 = 加一个 profile 文件」「建成前靠 profile 覆盖」的既定口径"
+        },
+        {
+          "path": "scripts/30-gen-proposals.py",
+          "priority": "must_read",
+          "hint": "rules.fragment.md 的现有装配点（rules_fragment 定义于 :285，写出 :376），碎片注入挂此处"
+        }
       ],
       "files_to_edit": [
         "static/manifest.yaml",
@@ -161,7 +245,9 @@
       "estimated_hours": 6,
       "importance": "critical",
       "difficulty": "high",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "python -X utf8 scripts/35-refs-gate.py --selftest 在完全断网条件下退出码 0，且样本面覆盖 OpenAlex/Crossref/Semantic Scholar/arXiv 四索引 fixture",
         "三态判定串只取 verified / suspected / unresolvable，由四索引 unmatched 布尔汇总出的未命中数 k 决定；--min-hits 覆盖 k 阈值后同一条目的判定随动改变",
@@ -170,11 +256,25 @@
         "gate.mode 取 advisory（缺省，逐条列建议不阻断）或 strict（终局阻断）；advisory 下存在 suspected 条目时退出码仍为 0，strict 下同一样本退出码非 0"
       ],
       "files_to_read": [
-        {"path": "references/30-literature-pipeline.md", "priority": "must_read", "hint": "L11-19 是验真的落盘规格：四索引名单、三态 verified/suspected/unresolvable、k 语义、反伪造偏置、gate.mode；L33-36 是 D-1 实证（不投爬虫，投入在验真与归一）"},
-        {"path": "SKILL.md", "priority": "must_read", "hint": "硬约束 D-1：明令排除盗版源，全文可得性不是引用前置条件"},
-        {"path": "CHANGELOG.md", "priority": "reference", "hint": "D-1 决策原文；D-13「规格落点差异」表指出本项是唯一有完整规格的待建能力"}
+        {
+          "path": "references/30-literature-pipeline.md",
+          "priority": "must_read",
+          "hint": "L11-19 是验真的落盘规格：四索引名单、三态 verified/suspected/unresolvable、k 语义、反伪造偏置、gate.mode；L33-36 是 D-1 实证（不投爬虫，投入在验真与归一）"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "硬约束 D-1：明令排除盗版源，全文可得性不是引用前置条件"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "reference",
+          "hint": "D-1 决策原文；D-13「规格落点差异」表指出本项是唯一有完整规格的待建能力"
+        }
       ],
-      "files_to_edit": ["scripts/35-refs-gate.py"],
+      "files_to_edit": [
+        "scripts/35-refs-gate.py"
+      ],
       "verify_command": "python -X utf8 scripts/35-refs-gate.py --selftest"
     },
     {
@@ -186,7 +286,10 @@
       "estimated_hours": 4,
       "importance": "high",
       "difficulty": "medium",
-      "requires": ["python", "yaml"],
+      "requires": [
+        "python",
+        "yaml"
+      ],
       "acceptance_criteria": [
         "对含禁用词的样本 md 文件，脚本逐条输出 file:line + 命中词，退出码 1",
         "对不含禁用词且各段均含 hedging 标记的样本 md，退出码 0",
@@ -195,11 +298,26 @@
         "python -X utf8 scripts/40-style-check.py --selftest 退出码 0 且完全离线"
       ],
       "files_to_read": [
-        {"path": "references/60-capability-specs.md", "priority": "must_read", "hint": "§1.3 词表 schema（categories/hedging/quantitative_signal 键即契约，脚本内禁硬编码词条）、§1.4 三条判定规则（段落定义、hedging 只对量化段生效）、§1.5 自测用例面含反向对照"},
-        {"path": "references/20-claim-framework.md", "priority": "must_read", "hint": "§6 降级措辞（hedging）是部分支持的处置手段——规则 3 只约束量化段的理由；§5 落位机检第 1 条对应 vague_attribution 类"},
-        {"path": "references/40-draft-to-latex.md", "priority": "reference", "hint": "md 单一真源：脚本输入面是 30-manuscript/*.md"}
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "must_read",
+          "hint": "§1.3 词表 schema（categories/hedging/quantitative_signal 键即契约，脚本内禁硬编码词条）、§1.4 三条判定规则（段落定义、hedging 只对量化段生效）、§1.5 自测用例面含反向对照"
+        },
+        {
+          "path": "references/20-claim-framework.md",
+          "priority": "must_read",
+          "hint": "§6 降级措辞（hedging）是部分支持的处置手段——规则 3 只约束量化段的理由；§5 落位机检第 1 条对应 vague_attribution 类"
+        },
+        {
+          "path": "references/40-draft-to-latex.md",
+          "priority": "reference",
+          "hint": "md 单一真源：脚本输入面是 30-manuscript/*.md"
+        }
       ],
-      "files_to_edit": ["scripts/40-style-check.py", "static/40-ai-cavity-wordlist.yaml"],
+      "files_to_edit": [
+        "scripts/40-style-check.py",
+        "static/40-ai-cavity-wordlist.yaml"
+      ],
       "verify_command": "python -X utf8 scripts/40-style-check.py --selftest"
     },
     {
@@ -211,7 +329,9 @@
       "estimated_hours": 6,
       "importance": "high",
       "difficulty": "medium",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "正文出现 [12] 而文献表只有 11 条时，脚本报出缺失条目号 12 并以 rc=1 退出",
         "文献表存在但正文从未引用的条目号被逐条列出，rc=1",
@@ -220,10 +340,20 @@
         "四类检查全部通过的一致性样本 rc=0"
       ],
       "files_to_read": [
-        {"path": "references/40-draft-to-latex.md", "priority": "must_read", "hint": "合稿期一致性检查项清单与编号口径"},
-        {"path": "scripts/70-verify.py", "priority": "reference", "hint": "只读验收脚本的退出码与输出形态约定，45 与之保持一致"}
+        {
+          "path": "references/40-draft-to-latex.md",
+          "priority": "must_read",
+          "hint": "合稿期一致性检查项清单与编号口径"
+        },
+        {
+          "path": "scripts/70-verify.py",
+          "priority": "reference",
+          "hint": "只读验收脚本的退出码与输出形态约定，45 与之保持一致"
+        }
       ],
-      "files_to_edit": ["scripts/45-consistency-check.py"],
+      "files_to_edit": [
+        "scripts/45-consistency-check.py"
+      ],
       "verify_command": "python -X utf8 scripts/45-consistency-check.py --selftest"
     },
     {
@@ -235,7 +365,9 @@
       "estimated_hours": 4,
       "importance": "normal",
       "difficulty": "medium",
-      "requires": ["documentation"],
+      "requires": [
+        "documentation"
+      ],
       "acceptance_criteria": [
         "文件含四个二级标题：取证规范、探针设计、反向控制、汇报纪律",
         "取证规范一节每条判据给出可执行命令或 file:line 形式，无纯散文式要求",
@@ -244,12 +376,30 @@
         "每条纪律都注明它承接 .orchd/SKILL.md 的第几条红线或本仓库 shared/conventions.md 的小节号"
       ],
       "files_to_read": [
-        {"path": "references/60-capability-specs.md", "priority": "must_read", "hint": "§2 是本文件的规格：四个二级标题的次序、每节最低条目数与素材出处表（真实病历，勿另造）、§2.4 禁止清单三项不可减、§2.5 审查者机检方式"},
-        {"path": ".orchd/SKILL.md", "priority": "must_read", "hint": "L22-53 纪律红线 MUST NOT 1-14 与 MUST 1-8 原文，runbook 不得与之冲突，也不得复述成第二真源"},
-        {"path": "references/20-claim-framework.md", "priority": "must_read", "hint": "§3 证据门限与 §5 引用落位机检 5 条——论文任务取证条目的具体内容来源"},
-        {"path": ".orchd/shared/conventions.md", "priority": "reference", "hint": "§2 编码/只读、§3 退出码、§4 证据要求（file:line + 反向对照）＝ 承接标注的目标小节号"}
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "must_read",
+          "hint": "§2 是本文件的规格：四个二级标题的次序、每节最低条目数与素材出处表（真实病历，勿另造）、§2.4 禁止清单三项不可减、§2.5 审查者机检方式"
+        },
+        {
+          "path": ".orchd/SKILL.md",
+          "priority": "must_read",
+          "hint": "L22-53 纪律红线 MUST NOT 1-14 与 MUST 1-8 原文，runbook 不得与之冲突，也不得复述成第二真源"
+        },
+        {
+          "path": "references/20-claim-framework.md",
+          "priority": "must_read",
+          "hint": "§3 证据门限与 §5 引用落位机检 5 条——论文任务取证条目的具体内容来源"
+        },
+        {
+          "path": ".orchd/shared/conventions.md",
+          "priority": "reference",
+          "hint": "§2 编码/只读、§3 退出码、§4 证据要求（file:line + 反向对照）＝ 承接标注的目标小节号"
+        }
       ],
-      "files_to_edit": ["references/50-orchd-runbook.md"]
+      "files_to_edit": [
+        "references/50-orchd-runbook.md"
+      ]
     },
     {
       "id": "task-profile-clinical",
@@ -260,7 +410,9 @@
       "estimated_hours": 5,
       "importance": "normal",
       "difficulty": "high",
-      "requires": ["yaml"],
+      "requires": [
+        "yaml"
+      ],
       "acceptance_criteria": [
         "python -X utf8 scripts/30-gen-proposals.py --profile profiles/10-clinical.yaml --out build/clinical 退出码 0 且产出 ≥20 个 task-*.json",
         "生成物的 acceptance_criteria 中出现效应量与 95% CI 的页级核对要求（字符串可 grep 到 CI 与 page-level 两要素）",
@@ -269,10 +421,20 @@
         "该 profile 跑 --check 时 orchd validate errors=0"
       ],
       "files_to_read": [
-        {"path": "profiles/00-base-empirical.yaml", "priority": "must_read", "hint": "基类 evidence_policy 与通用任务，只写学科差异"},
-        {"path": "profiles/10-materials-chemistry.yaml", "priority": "reference", "hint": "领域档的完整字段样板（depends/regress_expectations/verify_assertions_template）"}
+        {
+          "path": "profiles/00-base-empirical.yaml",
+          "priority": "must_read",
+          "hint": "基类 evidence_policy 与通用任务，只写学科差异"
+        },
+        {
+          "path": "profiles/10-materials-chemistry.yaml",
+          "priority": "reference",
+          "hint": "领域档的完整字段样板（depends/regress_expectations/verify_assertions_template）"
+        }
       ],
-      "files_to_edit": ["profiles/10-clinical.yaml"],
+      "files_to_edit": [
+        "profiles/10-clinical.yaml"
+      ],
       "verify_command": "python -X utf8 scripts/30-gen-proposals.py --profile profiles/10-clinical.yaml --out build/clinical"
     },
     {
@@ -284,7 +446,9 @@
       "estimated_hours": 4,
       "importance": "normal",
       "difficulty": "medium",
-      "requires": ["yaml"],
+      "requires": [
+        "yaml"
+      ],
       "acceptance_criteria": [
         "python -X utf8 scripts/30-gen-proposals.py --profile profiles/30-cs-ml.yaml --out build/csml 退出码 0 且产出 ≥20 个 task-*.json",
         "生成物 AC 含三条独立要求：baseline 原文核对、复现声明、多种子方差披露",
@@ -293,10 +457,20 @@
         "该 profile 跑 --check 时 orchd validate errors=0"
       ],
       "files_to_read": [
-        {"path": "profiles/00-base-empirical.yaml", "priority": "must_read", "hint": "基类证据策略：baseline 复现声明属领域加严注入点"},
-        {"path": "SKILL.md", "priority": "must_read", "hint": "profiles 体系表与「领域加严由 profile 注入」的边界"}
+        {
+          "path": "profiles/00-base-empirical.yaml",
+          "priority": "must_read",
+          "hint": "基类证据策略：baseline 复现声明属领域加严注入点"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "profiles 体系表与「领域加严由 profile 注入」的边界"
+        }
       ],
-      "files_to_edit": ["profiles/30-cs-ml.yaml"],
+      "files_to_edit": [
+        "profiles/30-cs-ml.yaml"
+      ],
       "verify_command": "python -X utf8 scripts/30-gen-proposals.py --profile profiles/30-cs-ml.yaml --out build/csml"
     },
     {
@@ -308,7 +482,9 @@
       "estimated_hours": 3,
       "importance": "high",
       "difficulty": "low",
-      "requires": ["documentation"],
+      "requires": [
+        "documentation"
+      ],
       "acceptance_criteria": [
         "SKILL.md 与 README.md 中位置参数写法 --regress 加目标项目的文本命中数为 0，用法块给出旗标形态 --regress --project <路径>",
         "SKILL.md 入口模式表的 P0/P1 先后与 references/10-idea-to-skeleton.md 三段式给出的先后一致",
@@ -317,23 +493,51 @@
         "本任务的四处文档改动各自落定后，README.md 与 SKILL.md 中不再存在指向已消失对象的引用：位置参数形态 --regress 写法、_pilot/ 与 build*/ 留仓表述、悬空序号引用，逐串命中数均为 0"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L66 N-4 文档面、L68 N-9（P0/P1 顺序表述 + 待建清单第 3 项悬空）、L90 N-7（09-25 报告丢失与 00-DECISIONS 悬空引用）、L91 N-8（build//_pilot 留仓表述与磁盘不符）原文与行号"},
-        {"path": "CHANGELOG.md", "priority": "must_read", "hint": "D-13 §遗留 现仅登记 N-1/N-4/N-5/N-9/N-10（缺 N-2/N-3/N-7/N-8 与 unit_source 措辞项）；D-14 已记录无 git 模式接入与本次报告在档更正，勿重复登记"},
-        {"path": "references/10-idea-to-skeleton.md", "priority": "must_read", "hint": "L9-10 三段式给出 P0 收敛 → P1 边界裁定的先后（AC2 的比对基准；注意 data-first 的 P1→P0 是有意倒序，要加说明而非改序）"},
-        {"path": "README.md", "priority": "reference", "hint": "L48-50 机检宣称、L108-109 目录树、L143-152 发布边界表 = AC1/AC4 现场"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L66 N-4 文档面、L68 N-9（P0/P1 顺序表述 + 待建清单第 3 项悬空）、L90 N-7（09-25 报告丢失与 00-DECISIONS 悬空引用）、L91 N-8（build//_pilot 留仓表述与磁盘不符）原文与行号"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "must_read",
+          "hint": "D-13 §遗留 现仅登记 N-1/N-4/N-5/N-9/N-10（缺 N-2/N-3/N-7/N-8 与 unit_source 措辞项）；D-14 已记录无 git 模式接入与本次报告在档更正，勿重复登记"
+        },
+        {
+          "path": "references/10-idea-to-skeleton.md",
+          "priority": "must_read",
+          "hint": "L9-10 三段式给出 P0 收敛 → P1 边界裁定的先后（AC2 的比对基准；注意 data-first 的 P1→P0 是有意倒序，要加说明而非改序）"
+        },
+        {
+          "path": "README.md",
+          "priority": "reference",
+          "hint": "L48-50 机检宣称、L108-109 目录树、L143-152 发布边界表 = AC1/AC4 现场"
+        }
       ],
-      "files_to_edit": ["SKILL.md", "README.md", "CHANGELOG.md", "references/40-draft-to-latex.md"]
+      "files_to_edit": [
+        "SKILL.md",
+        "README.md",
+        "CHANGELOG.md",
+        "references/40-draft-to-latex.md"
+      ]
     },
     {
       "id": "task-capability-registry-resync",
       "name": "能力注册表状态位机检化",
       "brief": "把 SKILL.md 能力注册表状态位与磁盘实测的比对做成 75 的守卫用例，之后状态位漂移即自测变红，不再靠人记。",
       "module": "mod-release-hygiene",
-      "depends_on": ["task-root-docs-drift-fix", "task-style-check-script", "task-publisher-fragment-hit", "task-capability-registry-flip"],
+      "depends_on": [
+        "task-root-docs-drift-fix",
+        "task-style-check-script",
+        "task-publisher-fragment-hit",
+        "task-capability-registry-flip"
+      ],
       "estimated_hours": 2,
       "importance": "high",
       "difficulty": "low",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "守卫逐行解析 SKILL.md 能力注册表：标 available 的行其路径磁盘存在、标 planned 的行其路径不存在，任一违反即 rc=1",
         "注册表全行状态位与磁盘实测一致后，python -X utf8 scripts/75-verify-selftest.py 退出码 0",
@@ -343,11 +547,27 @@
         "78-assertions-selftest.py 建成后，README 自测一节把 75 与 78 两条命令并列给出，按该节原文逐条复制执行均退出码 0"
       ],
       "files_to_read": [
-        {"path": "SKILL.md", "priority": "must_read", "hint": "能力注册表与资源索引两张表的列结构"},
-        {"path": "scripts/75-verify-selftest.py", "priority": "must_read", "hint": "守卫套件的注册方式与退出码语义守卫段落"},
-        {"path": "README.md", "priority": "must_read", "hint": "L139-140 写死 31 用例 + 11 守卫；L100 目录树只列 75 —— AC5/AC6 现场"}
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "能力注册表与资源索引两张表的列结构"
+        },
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "must_read",
+          "hint": "守卫套件的注册方式与退出码语义守卫段落"
+        },
+        {
+          "path": "README.md",
+          "priority": "must_read",
+          "hint": "L139-140 写死 31 用例 + 11 守卫；L100 目录树只列 75 —— AC5/AC6 现场"
+        }
       ],
-      "files_to_edit": ["SKILL.md", "README.md", "scripts/75-verify-selftest.py"],
+      "files_to_edit": [
+        "SKILL.md",
+        "README.md",
+        "scripts/75-verify-selftest.py"
+      ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
     {
@@ -355,11 +575,22 @@
       "name": "能力注册表状态位随落盘翻牌",
       "brief": "把 SKILL.md 能力注册表里已落地能力的 planned 改 available。既有 5 个能力实现任务的 files_to_edit 均不含 SKILL.md，翻牌无人负责，而 registry-resync 的守卫要求 planned 行路径不存在——不补这一步，任一能力落地即自相矛盾变红。",
       "module": "mod-release-hygiene",
-      "depends_on": ["task-refs-gate-script", "task-style-check-script", "task-consistency-check-script", "task-orchd-runbook", "task-publisher-fragment-hit", "task-profile-clinical", "task-profile-cs-ml", "task-profile-social-science"],
+      "depends_on": [
+        "task-refs-gate-script",
+        "task-style-check-script",
+        "task-consistency-check-script",
+        "task-orchd-runbook",
+        "task-publisher-fragment-hit",
+        "task-profile-clinical",
+        "task-profile-cs-ml",
+        "task-profile-social-science"
+      ],
       "estimated_hours": 1,
       "importance": "high",
       "difficulty": "low",
-      "requires": ["documentation"],
+      "requires": [
+        "documentation"
+      ],
       "acceptance_criteria": [
         "SKILL.md 能力注册表逐行状态位与磁盘实测一致：路径存在的行标 available、路径不存在的行标 planned，两侧均无违反项",
         "本次只改状态位与随之失效的说明文字，不改注册表列结构、不新增或删除行",
@@ -367,10 +598,20 @@
         "翻牌后 python -X utf8 scripts/75-verify-selftest.py 退出码 0（不得因状态位改动而变红）"
       ],
       "files_to_read": [
-        {"path": "SKILL.md", "priority": "must_read", "hint": "能力注册表列结构与「可用性以磁盘为准」口径（L154 社科行等 8 行 planned）"},
-        {"path": "references/60-capability-specs.md", "priority": "reference", "hint": "§3.6 建成后的收尾（不在实现任务内）即本任务的来源"}
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "能力注册表列结构与「可用性以磁盘为准」口径（L154 社科行等 8 行 planned）"
+        },
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "reference",
+          "hint": "§3.6 建成后的收尾（不在实现任务内）即本任务的来源"
+        }
       ],
-      "files_to_edit": ["SKILL.md"],
+      "files_to_edit": [
+        "SKILL.md"
+      ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
     {
@@ -378,11 +619,15 @@
       "name": "基座 manifest 形态尾巴（N-2 非 dict / N-3 空列表空转）",
       "brief": "堵掉判据基座两条 manifest 形态缺口：条目值或段内项形态不合时归 rc=2 并回显定位，不再裸 traceback；json_files 空列表配 require_keys 类键不再静默 PASS（09-26 审查 N-2 / N-3，本轮实测复现）。档位修正：报告把两条都记 P3，但 N-3 是本仓唯一真 fail-open（空清单空转放行），按 P2/必修口径先做 N-3 再做 N-2。",
       "module": "mod-judgment",
-      "depends_on": ["task-verify-encoding-and-manifest-path"],
+      "depends_on": [
+        "task-verify-encoding-and-manifest-path"
+      ],
       "estimated_hours": 4,
       "importance": "critical",
       "difficulty": "medium",
-      "requires": ["python"],
+      "requires": [
+        "python"
+      ],
       "acceptance_criteria": [
         "json_files 指向空列表且只配 require_keys_all（无 min_items）时退出码非 0，消息含该 path 与空列表字样",
         "--schema 文本写明 require_keys / require_keys_all 与 min_items 的组合语义（空列表不再被短路跳过）",
@@ -391,11 +636,26 @@
         "python -X utf8 scripts/75-verify-selftest.py 退出码 0，且新增三类守卫各含一条反向对照"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L80 N-3（check_json 的 and data 短路 → rc=0 静默放行）与 L81 N-2（非 dict 条目值 → 裸 traceback rc=1），含建议修法；L105-107 是其优先级判定"},
-        {"path": "scripts/70-verify.py", "priority": "must_read", "hint": "现场：verify_task :189-197 直接 spec.get、check_file :86 与 check_json :121 直接取 [path]、check_json :142 elif isinstance(data, list) and data 短路"},
-        {"path": ".orchd/shared/conventions.md", "priority": "reference", "hint": "§3 退出码语义（FAIL 优先于 usage-error、缺条目=2）与断言类型集合不得回退"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L80 N-3（check_json 的 and data 短路 → rc=0 静默放行）与 L81 N-2（非 dict 条目值 → 裸 traceback rc=1），含建议修法；L105-107 是其优先级判定"
+        },
+        {
+          "path": "scripts/70-verify.py",
+          "priority": "must_read",
+          "hint": "现场：verify_task :189-197 直接 spec.get、check_file :86 与 check_json :121 直接取 [path]、check_json :142 elif isinstance(data, list) and data 短路"
+        },
+        {
+          "path": ".orchd/shared/conventions.md",
+          "priority": "reference",
+          "hint": "§3 退出码语义（FAIL 优先于 usage-error、缺条目=2）与断言类型集合不得回退"
+        }
       ],
-      "files_to_edit": ["scripts/70-verify.py", "scripts/75-verify-selftest.py"],
+      "files_to_edit": [
+        "scripts/70-verify.py",
+        "scripts/75-verify-selftest.py"
+      ],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py"
     },
     {
@@ -403,21 +663,39 @@
       "name": "档案悬空引用与遗留登记补全（N-7 家族）",
       "brief": "修三处指向已消失对象的引用并把审查遗留登记补齐：references/00-project-layout.md 引 00-DECISIONS.md、.gitignore 引已删除的仓外 vendor 副本路径、CHANGELOG D-13 §遗留 缺 N-2/N-3/N-7/N-8 与 unit_source 措辞项。",
       "module": "mod-release-hygiene",
-      "depends_on": ["task-root-docs-drift-fix"],
+      "depends_on": [
+        "task-root-docs-drift-fix"
+      ],
       "estimated_hours": 2,
       "importance": "normal",
       "difficulty": "low",
-      "requires": ["documentation"],
+      "requires": [
+        "documentation"
+      ],
       "acceptance_criteria": [
         "references/00-project-layout.md 中字符串 00-DECISIONS.md 命中数为 0，该处改指 CHANGELOG.md 的具体小节且该小节在磁盘存在",
         ".gitignore 注释不再指向磁盘不存在的 _paper-pipeline-pilot-vendor-20260926 路径，改述为引擎血统可从 orchestra 工作区的 orchd-core（git 仓库，tag v1.5.0=32b4192）重建",
         "CHANGELOG.md 的 D-13 §遗留 覆盖 09-26 审查报告 N-1…N-10 全部十条，每条标注落点（任务 id 或不修+理由），实测无缺号"
       ],
       "files_to_read": [
-        {"path": "reports/00-REVIEW-2026-09-26.md", "priority": "must_read", "hint": "L90 N-7 原文（09-25 报告丢失 + 00-project-layout:36-37 悬空引用 + 无版本控制的证据链代价）、L91 N-8、L110 unit_source 措辞项、L124 档案完整性趋势"},
-        {"path": "CHANGELOG.md", "priority": "must_read", "hint": "D-13 §遗留 现有 ①-⑤ 与 D-14 的二次更正条目（报告其实一直在仓内）"}
+        {
+          "path": "reports/00-REVIEW-2026-09-26.md",
+          "priority": "must_read",
+          "hint": "L90 N-7 原文（09-25 报告丢失 + 00-project-layout:36-37 悬空引用 + 无版本控制的证据链代价）、L91 N-8、L110 unit_source 措辞项、L124 档案完整性趋势"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "must_read",
+          "hint": "D-13 §遗留 现有 ①-⑤ 与 D-14 的二次更正条目（报告其实一直在仓内）"
+        }
       ],
-      "files_to_edit": ["references/00-project-layout.md", ".gitignore", "CHANGELOG.md"]
+      "files_to_edit": [
+        ".gitignore",
+        "CHANGELOG.md",
+        "references/00-project-layout.md",
+        "scripts/76-doc-refs-selftest.py"
+      ],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py"
     },
     {
       "id": "task-profile-social-science",
@@ -428,7 +706,9 @@
       "estimated_hours": 4,
       "importance": "normal",
       "difficulty": "medium",
-      "requires": ["yaml"],
+      "requires": [
+        "yaml"
+      ],
       "acceptance_criteria": [
         "python -X utf8 scripts/30-gen-proposals.py --profile profiles/20-social-science.yaml --out build/socsci 退出码 0 且产出 ≥20 个 task-*.json",
         "生成物 AC 中可 grep 到两要素：抽样框/样本代表性披露、测量工具的信度与效度披露",
@@ -438,12 +718,30 @@
         "该 profile 跑 --check 时 orchd validate errors=0"
       ],
       "files_to_read": [
-        {"path": "profiles/00-base-empirical.yaml", "priority": "must_read", "hint": "evidence_policy 现为材料口径（裸基材/对照实验），社科要覆盖哪几条、哪些直接不适用"},
-        {"path": "profiles/10-materials-chemistry.yaml", "priority": "reference", "hint": "领域档完整字段样板（axes/domain_checklist/verify_assertions_template）"},
-        {"path": "SKILL.md", "priority": "must_read", "hint": "能力注册表「社科 profile」planned 行与四轴抽象的边界"},
-        {"path": "references/60-capability-specs.md", "priority": "reference", "hint": "§0 共同约束（编码/只读承诺/rc 语义）同样适用于新增 profile"}
+        {
+          "path": "profiles/00-base-empirical.yaml",
+          "priority": "must_read",
+          "hint": "evidence_policy 现为材料口径（裸基材/对照实验），社科要覆盖哪几条、哪些直接不适用"
+        },
+        {
+          "path": "profiles/10-materials-chemistry.yaml",
+          "priority": "reference",
+          "hint": "领域档完整字段样板（axes/domain_checklist/verify_assertions_template）"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "能力注册表「社科 profile」planned 行与四轴抽象的边界"
+        },
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "reference",
+          "hint": "§0 共同约束（编码/只读承诺/rc 语义）同样适用于新增 profile"
+        }
       ],
-      "files_to_edit": ["profiles/20-social-science.yaml"],
+      "files_to_edit": [
+        "profiles/20-social-science.yaml"
+      ],
       "verify_command": "python -X utf8 scripts/30-gen-proposals.py --profile profiles/20-social-science.yaml --out build/socsci"
     }
   ]
