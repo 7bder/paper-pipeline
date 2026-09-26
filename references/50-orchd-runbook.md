@@ -26,8 +26,8 @@
 
 4. **判据：引用任何能力前先确认落盘路径存在，可用性以磁盘为准而非注册表记忆。**
    命令：`python -X utf8 -c "import pathlib;print(pathlib.Path('scripts/40-style-check.py').exists())"`（PowerShell 侧等价 `Test-Path`）。
-   反例症状：`SKILL.md` 能力注册表写 `planned` 就假设脚本已建 → 下游 import 崩、或把「脚本不存在」当成「判据通过」。
-   （承接 `SKILL.md:151-154` 能力注册表"以磁盘为准"条，`conventions.md §4` 所引路径必须存在）
+   反例症状：注册表写 `planned` 就假设脚本已建 → 下游 import 崩、或把「脚本不存在」当成「判据通过」。
+   （承接技能根文件 `SKILL.md:151-154` 能力注册表"以磁盘为准"条；注意与引擎协议文件 `.orchd/SKILL.md` 是两个文件。另见 `conventions.md §4` 所引路径必须存在）
 
 5. **判据：Windows 五类假信号在测量前逐项排除，否则计数不可信。**
    命令：计数一律显式 `encoding="utf-8-sig"` 读；行尾以 blob 为准 `git show HEAD:<path>`（工作树 CRLF 是 autocrlf 正常态）；临时目录用 Python 的 `tempfile`，不用 shell 的 `/tmp` 字面量；目录体积以 `git ls-files` 清单为准而非 `du`。
@@ -95,8 +95,10 @@
 2) 拆除：把 --wordlist 指向临时副本，删掉唯一命中项（脚本内不得硬编码词条）
 3) 变红/翻转：同一输入重跑 → 期望由 rc=1 变 rc=0
 4) 反向加词：临时词表加一个自造词，样本里写入该词 → 期望 rc=1 且行号正确
+5) 还原：删临时词表与临时样本 → 重跑第 1 步（不带 --wordlist）→ 期望回到 rc=1，且 static/ 词表 sha256 与拆除前一致
 ```
-反例症状：第 3 步仍 rc=1 ⇒ 报告由脚本内常数驱动，换刊/换域改词表无效；第 4 步不报行号 ⇒ 命中不可定位，等于没检查。
+反例症状：第 3 步仍 rc=1 ⇒ 报告由脚本内常数驱动，换刊/换域改词表无效；第 4 步不报行号 ⇒ 命中不可定位，等于没检查；
+第 5 步回不到 rc=1 ⇒ 拆除时改的是 `static/` 真词表（越界写入发货面），当场还原并复核哈希。
 （承接 `references/60-capability-specs.md §1.3`/`§1.5`）
 
 ### 模板 C（可选）：注入链拆除（`static/` 碎片与生成器）
