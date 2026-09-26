@@ -11,6 +11,8 @@
 parity 模式用真实项目的历史 manifest 比对两个实现的判定是否逐任务一致。
 生成器守卫（2026-09-26 审查后新增）：断言展开为空的任务必须被 30-gen-proposals.py 拒绝，
 真实 profile 的生成物每个任务必须至少有一条断言——防止 done 门禁空转回归。
+碎片守卫（规格 §3 能力建成后新增）：未声明 fragments 时生成物与改动前逐字节一致且完全不读
+manifest、声明后按声明顺序原样注入（marker + 正文不折叠）、未知 id 必须非零退出且不落半份生成物。
 """
 from __future__ import annotations
 
@@ -430,6 +432,181 @@ def run_gen_cli_guards() -> int:
     return 1 if bad else 0
 
 
+def _legacy_rules_fragment(profile: dict) -> str:
+    """**改动前**（尚无碎片能力时）的 `rules_fragment` 逐字冻结副本，含它依赖的 `_render_scalar`。
+
+    零回归守卫拿它比对 sha256。副本刻意不调用 gen30 的实现——否则本体改了基线跟着改，
+    守卫就成了陪跑。基线变了要显式改这里，这是有意的摩擦。
+    """
+    def render(v):
+        if isinstance(v, dict):
+            return "；".join("%s=%s" % (k, render(x)) for k, x in v.items())
+        if isinstance(v, list):
+            return "；".join(render(x) for x in v)
+        return str(v)
+
+    pol = profile["evidence_policy"]
+    lines = ["# 域口径规则片段（由 profiles/%s 生成，请并入项目 `rules/`）" % profile["id"], ""]
+    for k, v in pol.items():
+        lines.append("- **%s**：%s" % (k, render(v)))
+    for key in ("figure_policy", "citation_policy"):
+        if key in profile:
+            lines += ["", "## %s" % key]
+            for k, v in profile[key].items():
+                lines.append("- **%s**：%s" % (k, render(v)))
+    return "\n".join(lines) + "\n"
+
+
+def run_fragment_guards() -> int:
+    """static/ 规则碎片能力（规格 `references/60-capability-specs.md` §3）的守卫。
+
+    §3.5 点名的三条里有两条是**否定条件**：未声明零回归、未知 id 必须 die。缺任一条，
+    「注入」这件事就等于没检查——正则没覆盖到不等于检查过且干净。另加 manifest 结构守卫，
+    把 AC1（≥3 条目、axes ≥2 键、碎片文件在盘）钉成机检而不是靠人看。
+    每条正向守卫都配反向对照（把故障条件真造出来一次），否则守卫会陪着修复一起空转变绿。
+    """
+    import hashlib
+    import yaml
+
+    cases: list[tuple[str, bool, str]] = []
+    static = HERE.parent / "static"
+    gen = HERE / "30-gen-proposals.py"
+    profiles = HERE.parent / "profiles"
+
+    # ---- AC1：manifest 结构与碎片文件在盘 ----
+    mpath = static / "manifest.yaml"
+    idx: dict = {}
+    try:
+        data = yaml.safe_load(mpath.read_text(encoding="utf-8-sig"))
+    except Exception as exc:                                       # noqa: BLE001
+        data = None
+        cases.append(("manifest.yaml 可读且是合法 YAML", False, repr(exc)))
+    if data:
+        entries = data.get("fragments")
+        ids = [e.get("id") for e in entries or [] if isinstance(e, dict)]
+        idx = {e.get("id"): e for e in entries or [] if isinstance(e, dict)}
+        cases.append(("碎片条目数 ≥3", isinstance(entries, list) and len(entries) >= 3,
+                      "实际 %s" % (len(entries) if isinstance(entries, list) else entries)))
+        cases.append(("首条为 elsevier-numbered", bool(ids) and ids[0] == "elsevier-numbered",
+                      "首条=%s" % (ids[:1])))
+        cases.append(("id 无重复", len(ids) == len(set(ids)), str(ids)))
+        cases.append(("version 为 1", str(data.get("version")) == "1", repr(data.get("version"))))
+        thin = [i for i, e in idx.items()
+                if not isinstance(e.get("axes"), dict) or len(e.get("axes")) < 2]
+        cases.append(("每条 axes ≥2 键", not thin, str(thin)))
+        allowed = set(gen30.FRAGMENT_AXES_KEYS)
+        stray = {i: sorted(set(e.get("axes", {})) - allowed) for i, e in idx.items()
+                 if isinstance(e.get("axes"), dict)}
+        cases.append(("axes 键 ⊆ 允许集合", not [k for k, v in stray.items() if v],
+                      str({k: v for k, v in stray.items() if v})))
+        gone = [i for i, e in idx.items()
+                if not e.get("fragment") or not (static / str(e["fragment"])).exists()]
+        cases.append(("每条 fragment 文件在盘", not gone, str(gone)))
+        asciiish = [i for i, e in idx.items()
+                    if not re.fullmatch(r"[A-Za-z0-9._-]+\.md", str(e.get("fragment", "")))]
+        cases.append(("碎片文件名为平铺 ASCII kebab-case", not asciiish, str(asciiish)))
+
+    # ---- AC2：未声明零回归（含「完全不读 manifest」的证明）----
+    # 这里**不**沿用 run_generator_guards 的「跳过被 extends 引用的父档」口径：那条排除的是
+    # 断言展开为空的抽象档，而规则片段本体对任何档都成立，父档恰恰是最可能被声明碎片的一档。
+    with tempfile.TemporaryDirectory() as td:
+        empty_static = pathlib.Path(td) / "no-such-static"
+        empty_static.mkdir()
+        for prof_path in sorted(profiles.glob("*.yaml")):
+            prof = gen30.load_profile(prof_path)
+            if prof.get("fragments"):
+                cases.append(("真实档 %s 未提前声明 fragments" % prof_path.name, False,
+                              "已声明 → 零回归基线无法比对，本任务的收尾不在本档"))
+                continue
+            new = hashlib.sha256(gen30.rules_fragment(prof).encode("utf-8")).hexdigest()
+            old = hashlib.sha256(_legacy_rules_fragment(prof).encode("utf-8")).hexdigest()
+            cases.append(("%s 未声明：与改动前逐字节一致" % prof_path.name, new == old,
+                          "sha256 %s vs %s" % (new[:12], old[:12])))
+            blank = hashlib.sha256(
+                gen30.rules_fragment(prof, empty_static).encode("utf-8")).hexdigest()
+            cases.append(("%s 未声明：manifest 不在也不影响（不读）" % prof_path.name,
+                          blank == new, "sha256 %s vs %s" % (blank[:12], new[:12])))
+            # 反向对照：同一份空目录下**声明**碎片必须 die，证明上一条的绿不是恒真
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    gen30.rules_fragment({**prof, "fragments": ["elsevier-numbered"]}, empty_static)
+                cases.append(("%s 反向对照：声明后空目录要 die" % prof_path.name, False,
+                              "没抛 SystemExit → 「不读」那条守卫是空转"))
+            except SystemExit as exc:
+                cases.append(("%s 反向对照：声明后空目录要 die" % prof_path.name,
+                              exc.code not in (0, None), "rc=%s" % exc.code))
+
+    # ---- AC3：声明后 marker + 正文原样 + 顺序 = 声明顺序 ----
+    with tempfile.TemporaryDirectory() as td:
+        tmp = pathlib.Path(td)
+        sdir = tmp / "static"
+        sdir.mkdir()
+        body_a = "    首行带四格缩进\n\n下一段前有空的行\n末行\n"
+        (sdir / "aa-first.md").write_text(body_a + "\n\n", encoding="utf-8")
+        (sdir / "bb-second.md").write_text("# 第二片\n\ntext\n", encoding="utf-8")
+        (sdir / "manifest.yaml").write_text(
+            "version: 1\nfragments:\n"
+            "  - id: bb-second\n    fragment: bb-second.md\n"
+            "    axes: {publisher: springer, language: en}\n"
+            "  - id: aa-first\n    fragment: aa-first.md\n"
+            "    axes: {publisher: elsevier, language: en}\n", encoding="utf-8")
+        prof = gen30.load_profile(profiles / "10-materials-chemistry.yaml")
+        prof = {**prof, "fragments": ["aa-first", "bb-second"]}   # 声明顺序与 manifest 相反
+        cap = io.StringIO()
+        with contextlib.redirect_stdout(cap):
+            out = gen30.rules_fragment(prof, sdir)
+        exp_a = "<!-- fragment: aa-first -->\n" + body_a.rstrip("\n") + "\n"
+        exp_b = "<!-- fragment: bb-second -->\n# 第二片\n\ntext\n"
+        cases.append(("AC3 顺序=声明顺序且逐字节块（缩进/空行/标记全原样）",
+                      out.endswith(exp_a + "\n" + exp_b), repr(out[-90:])))
+        cases.append(("AC3 marker 行独占一行", out.count("<!-- fragment: ") == 2
+                      and "\n<!-- fragment: aa-first -->\n" in out, ""))
+        cases.append(("AC3 axes 不符只 warn 不改判定",
+                      "warn" in cap.getvalue() and "bb-second" in cap.getvalue(), ""))
+        cases.append(("AC3 未声明时输出无 marker",
+                      "<!-- fragment:" not in gen30.rules_fragment(
+                          {k: v for k, v in prof.items() if k != "fragments"}, sdir), ""))
+
+    # ---- AC4/AC5：未知 id 走子进程真实退出码，且不得留下半份生成物 ----
+    with tempfile.TemporaryDirectory() as td:
+        tmp = pathlib.Path(td)
+        prof = gen30.load_profile(profiles / "10-materials-chemistry.yaml")
+        ghost = "ghost-fragment-9k2"
+        pf = tmp / "ghost-profile.yaml"
+        pf.write_text(yaml.safe_dump({**prof, "fragments": [ghost]}, allow_unicode=True),
+                      encoding="utf-8")
+        build = tmp / "build"
+        r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen),
+                            "--profile", str(pf), "--out", str(build)],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        born = (r.stdout or "") + (r.stderr or "")
+        cases.append(("AC4 未知 id：子进程 rc≠0", r.returncode != 0, "rc=%d" % r.returncode))
+        cases.append(("AC4 未知 id：消息含该 id", ghost in born, born[:120]))
+        cases.append(("AC4 未知 id：消息列出已知 id",
+                      "elsevier-numbered" in born and "md-single-source" in born, ""))
+        cases.append(("AC4 未知 id：消息不含本机绝对路径",
+                      not re.search(r"[A-Za-z]:[\\/]|\\\\Users\\\\", born), ""))
+        leftovers = sorted(p.name for p in build.rglob("*")) if build.exists() else []
+        cases.append(("AC4 未知 id：先拒后写（不留半份生成物）", not leftovers, str(leftovers)[:120]))
+        # 反向对照：同一条命令去掉 ghost 声明必须 rc=0 且落盘，证明上一条的「空」是拒绝而非崩溃
+        pf.write_text(yaml.safe_dump(prof, allow_unicode=True), encoding="utf-8")
+        r2 = subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen),
+                             "--profile", str(pf), "--out", str(build)],
+                            capture_output=True, text=True, encoding="utf-8", errors="replace")
+        cases.append(("AC4 反向对照：去掉声明后正常落盘 rc=0",
+                      r2.returncode == 0 and (build / "rules.fragment.md").exists(),
+                      "rc=%d" % r2.returncode))
+
+    print("== 规则碎片守卫（规格 §3）==")
+    bad = 0
+    for name, ok, detail in cases:
+        print("  %-46s %s%s" % (name, "OK" if ok else "MISMATCH",
+                                "" if ok or not detail else "  " + detail))
+        if not ok:
+            bad += 1
+    return 1 if bad else 0
+
+
 def run_encoding_and_path_guards() -> int:
     """N-1（cp936 下 FAIL 打印崩溃）与 N-5（--manifest 相对路径解析基准）的守卫。
 
@@ -747,6 +924,7 @@ def main() -> int:
     rc |= run_rc_semantics_guards()
     rc |= run_generator_guards()
     rc |= run_gen_cli_guards()
+    rc |= run_fragment_guards()
     rc |= run_encoding_and_path_guards()
     rc |= run_manifest_shape_guards()
     if a.project:

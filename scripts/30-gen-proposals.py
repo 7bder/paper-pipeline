@@ -4,7 +4,8 @@
 产出（默认写入 <out>/）：
   proposals/task-<id>.json        单任务提案（字段与 orchd `amend --register` 逐字对齐）
   _master.fragment.json           {project, modules, tasks} 片段，可并入 _master.json
-  rules.fragment.md               域口径规则片段（evidence_policy → 可读规则）
+  rules.fragment.md               域口径规则片段（evidence_policy → 可读规则）+ profile
+                                  `fragments:` 声明的 static/ 碎片原样注入（未声明则零改动）
   verify_manifest.fragment.json   本域建议的 verify 断言（按任务分组）
 
 用法（三条旗标形态与 argparse 一致，改 CLI 必同步此处，守卫见 75-verify-selftest.py）：
@@ -292,7 +293,101 @@ def _render_scalar(v) -> str:
     return str(v)
 
 
-def rules_fragment(profile: dict) -> str:
+# ---------- 规则碎片：static/manifest.yaml + static/<轴值>-<主题>.md ----------
+# 规格真源 references/60-capability-specs.md §3：声明才注入、未声明零回归（连 manifest 都不读）、
+# 未知 id 即 die、注入正文原样不折叠。axes 只做一致性提示，自动匹配不是本能力的激活路径。
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+FRAGMENT_AXES_KEYS = {"paper_type", "evidence_form", "publisher",
+                      "citation_style", "language", "reporting"}
+
+
+def _disp(path: Path) -> str:
+    """诊断里的路径只取末两段（`static/manifest.yaml`）：STATIC_DIR 由 __file__ 推出，
+    整条回显会把本机绝对路径写进出生输出（40 号脚本同口径，CHANGELOG D-14 同族）。"""
+    return "/".join(path.parts[-2:])
+
+
+def load_fragment_manifest(static_dir: Path) -> dict:
+    """读并校验碎片索引，返回 {id: {"path": 碎片文件, "axes": dict}}。
+
+    只在 profile 声明了 `fragments:` 时被调用：未声明的项目不得因这份文件坏掉而新增失败面。
+    """
+    index = static_dir / "manifest.yaml"
+    if not index.exists():
+        die("profile 声明了 fragments 但碎片索引不存在: %s" % _disp(index))
+    try:
+        data = yaml.safe_load(index.read_text(encoding="utf-8-sig"))
+    except yaml.YAMLError as exc:
+        die("碎片索引 %s 不是合法 YAML: %s" % (_disp(index), exc))
+    if not isinstance(data, dict) or not isinstance(data.get("fragments"), list):
+        die("碎片索引 %s 须是含顶层列表键 `fragments:` 的映射" % _disp(index))
+    if str(data.get("version")) != "1":
+        die("碎片索引 %s 的 version 须为 1（实际 %r）" % (_disp(index), data.get("version")))
+    out: dict[str, dict] = {}
+    for entry in data["fragments"]:
+        if not isinstance(entry, dict):
+            die("碎片索引 %s 存在非映射条目: %r" % (_disp(index), entry))
+        fid, frag = entry.get("id"), entry.get("fragment")
+        if not fid or not frag:
+            die("碎片条目须同时有 id 与 fragment: %r" % (entry,))
+        if fid in out:
+            die("碎片 id 重复: %s" % fid)
+        axes = entry.get("axes")
+        if not isinstance(axes, dict) or len(axes) < 2:
+            die("碎片 %s 的 axes 须是 ≥2 个键的映射（实际 %r）" % (fid, axes))
+        unknown = sorted(set(axes) - FRAGMENT_AXES_KEYS)
+        if unknown:
+            die("碎片 %s 的 axes 含未知键 %s（允许：%s）"
+                % (fid, unknown, sorted(FRAGMENT_AXES_KEYS)))
+        path = static_dir / frag
+        if not path.exists():
+            die("碎片 %s 声明的文件不存在: %s" % (fid, _disp(path)))
+        out[fid] = {"path": path, "axes": axes}
+    return out
+
+
+def _axes_mismatch(axes: dict, profile_axes: dict) -> list:
+    """碎片 axes 与 profile axes 的不同键（标量按相等、列表按成员关系；profile 未用的轴不参与）。"""
+    out = []
+    for key, want in axes.items():
+        if key not in profile_axes:
+            continue                      # 领域档想用该轴才在 `axes:` 补声明，不补即不比较
+        have = profile_axes[key]
+        have_list = have if isinstance(have, list) else [have]
+        if not have_list:
+            continue                      # 空列表 = 该轴不适用（如 reporting: []）
+        want_list = want if isinstance(want, list) else [want]
+        if not ({str(x) for x in want_list} & {str(x) for x in have_list}):
+            out.append("%s: profile=%r 碎片=%r" % (key, have, want))
+    return out
+
+
+def fragment_blocks(profile: dict, static_dir: Path) -> str:
+    """按 profile 声明顺序把碎片正文原样拼成注入块；未声明返回空串（且完全不读 manifest）。"""
+    declared = profile.get("fragments") or []
+    if not declared:
+        return ""
+    if not isinstance(declared, list):
+        die("profile 的 fragments 须是碎片 id 列表，实际 %r" % (declared,))
+    index = load_fragment_manifest(static_dir)
+    profile_axes = profile.get("axes") or {}
+    blocks = []
+    for fid in declared:
+        if fid not in index:
+            die("profile fragments 声明了未知碎片 id: %s（%s 已知：%s）"
+                % (fid, _disp(static_dir / "manifest.yaml"), ", ".join(sorted(index)) or "无条目"))
+        entry = index[fid]
+        mismatch = _axes_mismatch(entry["axes"], profile_axes)
+        if mismatch:
+            print("   warn  碎片 %s 的 axes 与 profile 不符：%s（仅提示，不改退出码）"
+                  % (fid, "；".join(mismatch)))
+        body = entry["path"].read_text(encoding="utf-8-sig")
+        blocks.append("<!-- fragment: %s -->\n%s\n" % (fid, body.rstrip("\n")))
+    return "\n".join(blocks)
+
+
+def rules_fragment(profile: dict, static_dir: Path | None = None) -> str:
     pol = profile["evidence_policy"]
     lines = ["# 域口径规则片段（由 profiles/%s 生成，请并入项目 `rules/`）" % profile["id"], ""]
     for k, v in pol.items():
@@ -302,7 +397,9 @@ def rules_fragment(profile: dict) -> str:
             lines += ["", "## %s" % key]
             for k, v in profile[key].items():
                 lines.append("- **%s**：%s" % (k, _render_scalar(v)))
-    return "\n".join(lines) + "\n"
+    text = "\n".join(lines) + "\n"
+    blocks = fragment_blocks(profile, STATIC_DIR if static_dir is None else static_dir)
+    return text if not blocks else text + "\n" + blocks
 
 
 TEXT_SUFFIXES = {".md", ".json", ".txt", ".yaml", ".yml", ".py", ".bib", ".tex", ".csv",
@@ -369,6 +466,12 @@ def verify_fragment(profile: dict, tasks: list) -> dict:
 
 
 def emit(built: dict, profile: dict, out: Path) -> None:
+    # 先算全部载荷、后写盘：rules_fragment/verify_fragment 都有 die 路径（碎片未知 id、
+    # 断言展开为空），曾的顺序是 proposals 与 master 先落盘再 die，现场留下半份生成物 +
+    # 上一次的 rules.fragment.md，看起来像"跑过了"（与 N-4 的先拒后写同口径）。
+    rules_text = rules_fragment(profile)
+    verify_text = json.dumps(verify_fragment(profile, built["tasks"]),
+                             ensure_ascii=False, indent=2) + "\n"
     (out / "proposals").mkdir(parents=True, exist_ok=True)
     keep = {"%s.json" % t["id"] for t in built["tasks"]}
     for old in (out / "proposals").glob("task-*.json"):   # 幂等：profile 删任务后不留过期提案
@@ -383,10 +486,8 @@ def emit(built: dict, profile: dict, out: Path) -> None:
             json.dumps(p, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (out / "_master.fragment.json").write_text(
         json.dumps(built["master"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (out / "rules.fragment.md").write_text(rules_fragment(profile), encoding="utf-8")
-    (out / "verify_manifest.fragment.json").write_text(
-        json.dumps(verify_fragment(profile, built["tasks"]), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8")
+    (out / "rules.fragment.md").write_text(rules_text, encoding="utf-8")
+    (out / "verify_manifest.fragment.json").write_text(verify_text, encoding="utf-8")
     print("emitted: %d proposals + master fragment + rules fragment + verify fragment -> %s"
           % (len(built["tasks"]), out))
 
