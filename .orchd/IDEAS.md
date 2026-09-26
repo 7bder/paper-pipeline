@@ -14,3 +14,9 @@
 - id: refs-gate-live-smoke
 - 论证: 本任务两轮返工暴露的共同盲区：离线 fixture 是自写的，测不到端点契约漂移。三处真实缺陷全靠人肉跑真网络才发现——F1（arXiv 正常响应是 Atom XML 且超速以 406 呈现）、F3（Semantic Scholar 免 key 连发两请求即 429、对个别真 DOI 直接 404）、F9（arXiv 的 IP 级速率罚时窗口会累积，静置 240s 未恢复）。缺一个只读冒烟面：按 HOST_INTERVAL_S 的合规间隔、限制请求量（建议 3 条已知真题录、上限 12 个请求），输出四索引 source 状态分布与「较上次漂移」的告警，作为 --selftest 的补面而非替代（后者仍须零联网）。落点候选：scripts/35-refs-gate.py 增 --smoke-live 子面，或独立 scripts/36-refs-smoke.py；须写明不可在 CI 里当硬门禁（外部服务限流非本仓可控）。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-26 flat 单工作树布局下 claim 的分支切换死锁（id: orchd-flat-claim-deadlock）
+- status: study
+- id: orchd-flat-claim-deadlock
+- 论证: 本仓采用 flat 布局（无 git worktree 隔离）：claim 把 main 切到 task/<id>，done/review 完成时又切回 main。多轮返工时第 3 次 claim 面对「当前在 main、task/<id> 分支已存在且带未合并提交」的切换前置条件而拒绝，实测死锁一次，最终由用户一次性放行手动 git checkout main 才走出。E030 系列跨 worktree 守卫在该布局下已全部降级为 not_applicable，说明引擎识别了布局特殊性，但 claim 的分支前置条件没跟着降级，两者口径不一致。修复应在引擎侧（claim 时若 task/<id> 已存在且其提交尚未合并，直接 checkout 该分支续作，而不是要求 worktree 不存在）。本仓不改 .orchd/ 引擎本体（conventions §6 发布边界：引擎本体不入库、vendored），故此条登记用于①上游 orchd-core issue 文本 ②本机 flat 布局下的绕行口径记录。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
