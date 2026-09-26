@@ -597,6 +597,114 @@ def run_fragment_guards() -> int:
                       r2.returncode == 0 and (build / "rules.fragment.md").exists(),
                       "rc=%d" % r2.returncode))
 
+    # ---- D1–D4：索引字段形态与正文编码的强制点（2026-09-27 code 审查返工）----
+    # 这组判据测的是"规格写了没强制"：`../`、绝对路径、子目录、非 .md、非字符串字段、
+    # 非 UTF-8 正文都必须 rc=2 明拒。缺任一条，索引里一个笔误就会把**别的文件**当规则静默注入。
+    with tempfile.TemporaryDirectory() as td:
+        tmp = pathlib.Path(td)
+        sdir = tmp / "static"
+        sdir.mkdir()
+        good_manifest = ("version: 1\nfragments:\n  - id: good\n    fragment: good.md\n"
+                         "    axes: {publisher: elsevier, language: en}\n")
+        (sdir / "good.md").write_text("# 好片\n\n正文\n", encoding="utf-8")
+        (tmp / "outside.md").write_text("包外正文\n", encoding="utf-8")
+        (sdir / "sub").mkdir()
+        (sdir / "sub" / "nested.md").write_text("嵌套正文\n", encoding="utf-8")
+        (sdir / "good.txt").write_text("非 md 正文\n", encoding="utf-8")
+        (sdir / "gbk.md").write_bytes("# 好片\n\n中文正文在此\n".encode("gbk"))
+        (sdir / "marker.md").write_text("正文\n\n<!-- fragment: fake -->\n冒名 marker\n",
+                                         encoding="utf-8")
+        prof0 = gen30.load_profile(profiles / "10-materials-chemistry.yaml")
+
+        def reject(tag, manifest_text, declared=("good",), needle=""):
+            """把故障真造一次：期望 die(rc=2) + 有 ERROR: + 不回显本机绝对路径。"""
+            (sdir / "manifest.yaml").write_text(manifest_text, encoding="utf-8")
+            cap = io.StringIO()
+            code, crashed = None, None
+            try:
+                with contextlib.redirect_stdout(cap):
+                    gen30.fragment_blocks({**prof0, "fragments": list(declared)}, sdir)
+            except SystemExit as exc:
+                code = exc.code
+            except Exception as exc:                                   # noqa: BLE001
+                crashed = repr(exc)                                    # 期望 die，不接受 traceback
+            msg = cap.getvalue()
+            if crashed:
+                cases.append((tag, False, "以崩代拒：%s" % crashed))
+            elif code is None:
+                cases.append((tag, False, "未 die → 该失败面静默放过"))
+            else:
+                cases.append((tag, code == 2 and "ERROR:" in msg
+                              and not re.search(r"[A-Za-z]:[\\/]", msg)
+                              and (needle in msg if needle else True),
+                              "rc=%s %s" % (code, msg.strip()[-140:] or "无输出")))
+
+        def one(kind_frag, kind_id=None):
+            return ("version: 1\nfragments:\n  - id: %s\n    fragment: %s\n"
+                    "    axes: {publisher: elsevier, language: en}\n"
+                    % (kind_id or "good", kind_frag))
+
+        reject("D1 fragment 为列表 → rc=2 明拒", one("[good.md]"))
+        reject("D1 fragment 为整数 → rc=2 明拒", one("123"))
+        reject("D1 id 为整数 → rc=2（含报错消息构造本身不崩）", one("good.md", kind_id="1"),
+               declared=("1",))
+        reject("D1 id 为空串 → rc=2", one("good.md", kind_id='""'))
+        reject("D3 fragment 越界 ../ → rc=2（不得把包外文件当规则）",
+               one("../outside.md"))
+        reject("D3 fragment 带子目录 → rc=2（§3.1 平铺）", one("sub/nested.md"))
+        reject("D3 fragment 非 .md → rc=2", one("good.txt"))
+        reject("D3 fragment 为绝对路径 → rc=2", one('"%s"' % str(tmp / "outside.md").replace("\\", "/")))
+        reject("D3 axes 非映射 → rc=2 且不回显本体",
+               "version: 1\nfragments:\n  - id: good\n    fragment: good.md\n"
+               "    axes: [publisher, elsevier]\n")
+        reject("D4 正文非 UTF-8 → rc=2（不得乱码注入/不得崩）", one("gbk.md"))
+        reject("O2 正文含注入标记 → rc=2（marker 由拼接层独占）", one("marker.md"))
+        reject("O1 声明重复 → rc=2（与索引侧重复 id 对称）", good_manifest,
+               declared=("good", "good"))
+        reject("D1 声明元素非字符串 → rc=2", good_manifest, declared=("good", 1))
+        # 反向对照：以上全部故障条件都不在时，必须逐字节注入成功
+        (sdir / "manifest.yaml").write_text(good_manifest, encoding="utf-8")
+        cap_ok = io.StringIO()
+        with contextlib.redirect_stdout(cap_ok):
+            ok_out = gen30.fragment_blocks({**prof0, "fragments": ["good"]}, sdir)
+        cases.append(("D1–D4 反向对照：合法索引逐字节注入成功",
+                      ok_out == "<!-- fragment: good -->\n# 好片\n\n正文\n", repr(ok_out[:120])))
+        # 反向对照：新校验不得把「未声明」拖进失败面——索引坏成非 UTF-8 也要原样返回空串
+        (sdir / "manifest.yaml").write_bytes("version: 1\nfragments: [ ]\n".encode("gbk")
+                                             + b"\xff\xfe garbage")
+        cases.append(("D1–D4 反向对照：未声明时坏索引仍零回归（不读）",
+                      gen30.fragment_blocks(prof0, sdir) == "", "返回非空"))
+        # 子进程级：越界声明必须 rc=2、无 traceback、零残留（先拒后写没被新校验破坏）。
+        # STATIC_DIR 由脚本自身的 __file__ 推出，所以要把生成器复制到临时包里跑，
+        # 否则它读的还是仓库真 static/，这条判据测不到我造的坏索引。
+        script_dir = tmp / "scripts"
+        script_dir.mkdir(exist_ok=True)
+        gen_copy = script_dir / gen.name
+        gen_copy.write_bytes(gen.read_bytes())
+        (sdir / "manifest.yaml").write_text(one("../outside.md"), encoding="utf-8")
+        pf2 = tmp / "esc-profile.yaml"
+        pf2.write_text(yaml.safe_dump({**prof0, "fragments": ["good"]}, allow_unicode=True),
+                       encoding="utf-8")
+        build2 = tmp / "build-esc"
+        r3 = subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen_copy),
+                             "--profile", str(pf2), "--out", str(build2)],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        born3 = (r3.stdout or "") + (r3.stderr or "")
+        cases.append(("D3 子进程级：越界声明 rc=2（非 traceback）",
+                      r3.returncode == 2 and "Traceback" not in born3,
+                      "rc=%d %s" % (r3.returncode, born3.strip()[-160:])))
+        cases.append(("D3 子进程级：先拒后写（零残留）",
+                      not (build2.exists() and any(build2.rglob("*"))),
+                      str(sorted(p.name for p in build2.rglob("*"))[:3]) if build2.exists() else ""))
+        # 反向对照：把索引修好，同一个临时包必须 rc=0 并落下 rules.fragment.md
+        (sdir / "manifest.yaml").write_text(good_manifest, encoding="utf-8")
+        r4 = subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen_copy),
+                             "--profile", str(pf2), "--out", str(tmp / "build-ok")],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        cases.append(("D3 子进程级反向对照：好索引 rc=0 且产物在盘",
+                      r4.returncode == 0 and (tmp / "build-ok" / "rules.fragment.md").exists(),
+                      "rc=%d %s" % (r4.returncode, born3.strip()[-120:])))
+
     print("== 规则碎片守卫（规格 §3）==")
     bad = 0
     for name, ok, detail in cases:

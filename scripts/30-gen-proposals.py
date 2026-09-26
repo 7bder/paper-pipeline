@@ -325,22 +325,42 @@ def load_fragment_manifest(static_dir: Path) -> dict:
     if str(data.get("version")) != "1":
         die("碎片索引 %s 的 version 须为 1（实际 %r）" % (_disp(index), data.get("version")))
     out: dict[str, dict] = {}
-    for entry in data["fragments"]:
+    for pos, entry in enumerate(data["fragments"], 1):
         if not isinstance(entry, dict):
-            die("碎片索引 %s 存在非映射条目: %r" % (_disp(index), entry))
+            die("碎片索引 %s 第 %d 条不是映射（实际类型 %s）"
+                % (_disp(index), pos, type(entry).__name__))
         fid, frag = entry.get("id"), entry.get("fragment")
         if not fid or not frag:
-            die("碎片条目须同时有 id 与 fragment: %r" % (entry,))
+            # 不回显条目本体：里面可能有绝对路径，回显等于把本机路径写进出生输出。
+            die("碎片索引 %s 第 %d 条须同时有非空 id 与 fragment（该条目键：%s）"
+                % (_disp(index), pos,
+                   sorted(map(str, entry)) if isinstance(entry, dict) else "?"))
+        # 类型先于一切：非字符串会在 `static_dir / frag` 抛 TypeError，非字符串 id 会让
+        # 下面"未知 id"消息里的 sorted(index) 崩在报错当场（2026-09-27 code 审查 D1/D2）。
+        if not isinstance(fid, str) or not fid.strip():
+            die("碎片 id 须是非空字符串（实际类型 %s）" % type(fid).__name__)
+        if not isinstance(frag, str):
+            die("碎片 %s 的 fragment 须是文件名字符串（实际类型 %s）"
+                % (fid, type(frag).__name__))
         if fid in out:
             die("碎片 id 重复: %s" % fid)
         axes = entry.get("axes")
         if not isinstance(axes, dict) or len(axes) < 2:
-            die("碎片 %s 的 axes 须是 ≥2 个键的映射（实际 %r）" % (fid, axes))
+            die("碎片 %s 的 axes 须是 ≥2 个键的映射（实际类型 %s）"
+                % (fid, type(axes).__name__))
         unknown = sorted(set(axes) - FRAGMENT_AXES_KEYS)
         if unknown:
             die("碎片 %s 的 axes 含未知键 %s（允许：%s）"
                 % (fid, unknown, sorted(FRAGMENT_AXES_KEYS)))
+        # §3.1 的"static/ 下平铺 .md"是加载器强制，不只是文档描述：漏了这层，索引里一个
+        # 笔误的 `../` 或绝对路径就会把**别的文件**当规则静默注入（D3）。
+        if (not frag.endswith(".md") or frag != Path(frag).name
+                or any(sep in frag for sep in ("/", "\\", ":")) or frag.startswith(".")):
+            die("碎片 %s 的 fragment 须是 %s 下的裸文件名 .md（不得含路径分隔符、盘符或以 . 开头；"
+                "实际文件名为 %s）" % (fid, _disp(static_dir), Path(frag).name or "空"))
         path = static_dir / frag
+        if not path.resolve().is_relative_to(static_dir.resolve()):
+            die("碎片 %s 的正文解析后越出 %s" % (fid, _disp(static_dir)))
         if not path.exists():
             die("碎片 %s 声明的文件不存在: %s" % (fid, _disp(path)))
         out[fid] = {"path": path, "axes": axes}
@@ -364,12 +384,24 @@ def _axes_mismatch(axes: dict, profile_axes: dict) -> list:
 
 
 def fragment_blocks(profile: dict, static_dir: Path) -> str:
-    """按 profile 声明顺序把碎片正文原样拼成注入块；未声明返回空串（且完全不读 manifest）。"""
+    """按 profile 声明顺序把碎片正文拼成注入块；未声明返回空串（且完全不读 manifest）。
+
+    "原样"指语义原样（不折叠空行、不改缩进，换行按 LF 归一）；marker 由本函数独占，
+    碎片正文再出现该 marker 即拒，否则下游按 marker 计数的一致性判据不可靠。
+    """
     declared = profile.get("fragments") or []
     if not declared:
         return ""
     if not isinstance(declared, list):
-        die("profile 的 fragments 须是碎片 id 列表，实际 %r" % (declared,))
+        die("profile 的 fragments 须是碎片 id 列表（实际类型 %s）" % type(declared).__name__)
+    for fid in declared:
+        if not isinstance(fid, str) or not fid.strip():
+            die("profile 的 fragments 须全是碎片 id 字符串（有元素是 %s）"
+                % type(fid).__name__)
+    dup_decl = sorted({f for f in declared if declared.count(f) > 1})
+    if dup_decl:
+        # 与索引侧「碎片 id 重复」对称：重复声明会把同一片注入两次，marker 计数判据随之失真。
+        die("profile 的 fragments 重复声明：%s" % dup_decl)
     index = load_fragment_manifest(static_dir)
     profile_axes = profile.get("axes") or {}
     blocks = []
@@ -382,7 +414,16 @@ def fragment_blocks(profile: dict, static_dir: Path) -> str:
         if mismatch:
             print("   warn  碎片 %s 的 axes 与 profile 不符：%s（仅提示，不改退出码）"
                   % (fid, "；".join(mismatch)))
-        body = entry["path"].read_text(encoding="utf-8-sig")
+        try:
+            body = entry["path"].read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError as exc:
+            # 读不动要明说（conventions §2 读侧口径）：以崩代拒 = rc=1 加 traceback，
+            # 硬读下去 = 乱码进规则片段，两条都比不过一次 rc=2 的定位报告。
+            die("碎片 %s 的正文 %s 不是合法 UTF-8（%s）"
+                % (fid, _disp(entry["path"]), exc.reason or "编码不符"))
+        if "<!-- fragment:" in body:
+            # 拼接层用该 marker 标块；碎片正文里再出现一次，下游按 marker 计数的一致性判据就不可靠了。
+            die("碎片 %s 的正文含注入标记 <!-- fragment: … -->，须改写该正文（marker 由拼接层独占）" % fid)
         blocks.append("<!-- fragment: %s -->\n%s\n" % (fid, body.rstrip("\n")))
     return "\n".join(blocks)
 
