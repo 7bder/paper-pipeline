@@ -13,6 +13,8 @@ parity 模式用真实项目的历史 manifest 比对两个实现的判定是否
 真实 profile 的生成物每个任务必须至少有一条断言——防止 done 门禁空转回归。
 碎片守卫（规格 §3 能力建成后新增）：未声明 fragments 时生成物与改动前逐字节一致且完全不读
 manifest、声明后按声明顺序原样注入（marker + 正文不折叠）、未知 id 必须非零退出且不落半份生成物。
+注册表守卫（task-capability-registry-resync 新增）：SKILL.md 能力注册表状态位与磁盘实测一致
+（available 行路径在盘、planned 行路径不在盘），含 available→planned 与幽灵路径双向内存反向对照。
 """
 from __future__ import annotations
 
@@ -715,6 +717,78 @@ def run_fragment_guards() -> int:
     return 1 if bad else 0
 
 
+# ── 能力注册表状态位守卫（task-capability-registry-resync）───────────────────────
+# 口径（SKILL.md §能力注册表）：「是否可用」由磁盘决定——标 available 的行路径必须存在，
+# 标 planned 的行路径必须不存在，任一违反即 rc=1；registry-flip 漏翻或能力文件被误删都会在此变红。
+_REGISTRY_ROW = re.compile(r"^\|([^|]+)\|([^|]+)\|([^|]+)\|\s*(planned|available)\s*\|", re.M)
+
+
+def registry_rows(text: str) -> list:
+    """解析 SKILL.md 能力注册表 → [(名称, 检查路径, 状态)]。
+
+    碎片行的 `static/` + `manifest.yaml` 双反引号格归一为 static/manifest.yaml
+    （目录与索引同时在盘才算可用）；其余行取路径单元格第一个反引号路径。
+    """
+    _, sep, body = text.partition("## 能力注册表")
+    if not sep:
+        return []
+    body = body.split("**建好后的动作**")[0]
+    rows = []
+    for name, cell, _, status in _REGISTRY_ROW.findall(body):
+        if "manifest.yaml" in cell:
+            path = "static/manifest.yaml"
+        else:
+            m = re.search(r"`([^`]+)`", cell)
+            if not m:
+                continue
+            path = m.group(1).rstrip("/")
+        rows.append((name.strip(), path, status))
+    return rows
+
+
+def registry_violations(text: str, root: pathlib.Path) -> list:
+    rows = registry_rows(text)
+    if not rows:
+        return ["能力注册表未解析到任何行（节缺失或表结构变更）"]
+    out = []
+    for name, path, status in rows:
+        exists = (root / path).exists()
+        if status == "available" and not exists:
+            out.append("标 available 但路径不在盘：%s（%s）" % (path, name))
+        if status == "planned" and exists:
+            out.append("标 planned 但路径已在盘（应翻牌 available）：%s（%s）" % (path, name))
+    return out
+
+
+def run_registry_guards() -> int:
+    print("== 能力注册表状态位守卫（SKILL.md）==")
+    text = (HERE.parent / "SKILL.md").read_text(encoding="utf-8-sig")
+    root = HERE.parent
+    violations = registry_violations(text, root)
+    bad = 1 if violations else 0
+    for v in violations:
+        print("  MISMATCH %s" % v)
+    print("  注册表 %d 行，状态位与磁盘%s" % (len(registry_rows(text)),
+          "一致" if not violations else "不一致"))
+    if violations:
+        print("  SKIP  反向对照（当前注册表本身不一致，先修复再对照）")
+        return bad
+    # 反向对照（内存变异，不落盘、不动真文件）：改错任一行状态位，守卫必须变红。
+    m = re.search(r"^(\|[^|]+\|[^|]+\|[^|]+\|)\s*available(\s*\|)", text, re.M)
+    flip = text[:m.start()] + m.group(1) + " planned" + m.group(2) + text[m.end():] if m else None
+    ok1 = bool(flip) and bool(registry_violations(flip, root))
+    print("  %-46s %s" % ("反向对照：available→planned（路径已在盘）被判违反",
+                          "OK" if ok1 else "MISMATCH"))
+    m2 = re.search(r"^(\|[^|]+\| `)[^`]+(` \|[^|]+\|)\s*available(\s*\|)", text, re.M)
+    flip2 = (text[:m2.start()] + m2.group(1) + "scripts/00-ghost-capability.py" + m2.group(2)
+             + " available" + m2.group(3) + text[m2.end():]) if m2 else None
+    ok2 = bool(flip2) and any("00-ghost-capability.py" in v
+                              for v in registry_violations(flip2, root))
+    print("  %-46s %s" % ("反向对照：available 行指向不在盘路径被判违反",
+                          "OK" if ok2 else "MISMATCH"))
+    return bad or (0 if ok1 and ok2 else 1)
+
+
 def run_encoding_and_path_guards() -> int:
     """N-1（cp936 下 FAIL 打印崩溃）与 N-5（--manifest 相对路径解析基准）的守卫。
 
@@ -1033,6 +1107,7 @@ def main() -> int:
     rc |= run_generator_guards()
     rc |= run_gen_cli_guards()
     rc |= run_fragment_guards()
+    rc |= run_registry_guards()
     rc |= run_encoding_and_path_guards()
     rc |= run_manifest_shape_guards()
     if a.project:

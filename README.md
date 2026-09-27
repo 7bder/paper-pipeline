@@ -136,8 +136,9 @@ paper-pipeline/
 
 - **回归基线**：paper1 的 21 个真实 proposal 与 verify manifest 是"标准答案"。
   任何生成器改动都必须能重生成等价集合且 `validate` 通过（`--regress` 对比）。
-- **自测**：`python scripts/75-verify-selftest.py`——31 个合成控制用例（每个断言类型一对"应过/应失败"）
-  + 11 个守卫；改基座或换 profile 后必跑。
+- **自测**（改基座或换 profile 后必跑，两条命令按原文逐条复制执行均应退出码 0；守卫条目随能力演进增删，不在此绑定具体数字）：
+  - `python scripts/75-verify-selftest.py`——合成控制用例（每个断言类型一对"应过/应失败"）+ 生成器/碎片/编码/注册表守卫面
+  - `python scripts/78-assertions-selftest.py`——profile 实质断言棘轮（下限 + 形状 + 正反控制 + 反向对照）
 - **多领域验收（唯一可信证明）**：用一个**非材料领域**的最小真实项目跑通 `validate` + 1–2 个真任务闭环；不通过不发布。
 
 ## 发布边界
