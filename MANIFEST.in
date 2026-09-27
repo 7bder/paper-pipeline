@@ -6,6 +6,7 @@ include README.md
 include CHANGELOG.md
 include VERSION
 include MANIFEST.in
+include install.py
 include profiles/00-base-empirical.yaml
 include profiles/10-clinical.yaml
 include profiles/10-materials-chemistry.yaml

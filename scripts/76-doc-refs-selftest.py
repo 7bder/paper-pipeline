@@ -533,6 +533,19 @@ def selftest() -> int:
             bad.append("G6/G7 反向对照未全绿（正控制=%s 负例=%s 列缺=%s 开发层=%s）"
                        % (ok_pos, ok_neg, ok_miss, ok_dev))
 
+    # 安装器自测纳入回归链（task-installer）：真实子进程跑 install.py --selftest
+    # （双模式临时装配 + 清单断言 + 副本内 30/70 号冒烟 + cleanup 护栏）。
+    import subprocess
+    r = subprocess.run([sys.executable, "-B", "-X", "utf8", str(ROOT / "install.py"), "--selftest"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    inst_ok = r.returncode == 0
+    counters["control"] += 1
+    print("  安装器 --selftest 纳入回归链（install.py 双模式装配+冒烟）  %s"
+          % ("OK" if inst_ok else "MISMATCH"))
+    if not inst_ok:
+        bad.append("install.py --selftest rc=%d：%s"
+                   % (r.returncode, ((r.stdout or "") + (r.stderr or ""))[-200:]))
+
     if not counters["control"]:
         print("  FAIL  反向对照用例数为 0 → 自测面退化成空转")
         return 1
