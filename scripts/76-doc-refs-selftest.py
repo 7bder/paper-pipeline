@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""76-doc-refs-selftest.py — 档案悬空引用与遗留台账的门禁自测（N-7 家族的守卫面）。
+"""76-doc-refs-selftest.py — 档案悬空引用、遗留台账、执行目录纯净与发布清单的门禁自测。
 
 用法：
-    python -X utf8 scripts/76-doc-refs-selftest.py            # 五条守卫（verify_command 形态）
+    python -X utf8 scripts/76-doc-refs-selftest.py            # 七条守卫（verify_command 形态）
     python -X utf8 scripts/76-doc-refs-selftest.py --selftest # 合成控制用例（红绿双向 + 反向对照）
 
-五条守卫（G1/G3 对 AC1、AC2，G4 对 AC3，G2/G5 是同类悬空引用的横向补齐）：
+七条守卫（G1/G3 对 AC1、AC2，G4 对 AC3，G2/G5 是同类悬空引用的横向补齐；G6/G7 为发布纯净化新增）：
   G1 死档案引用：发布面文档引用 `00-DECISIONS.md` / `00-REVIEW-2026-09-25.md` / 仓外 vendor 目录时，
      同一行必须带失效标记（"已消失 / 不在磁盘 / 重命名 / 悬空 / 丢失 …"），否则按悬空引用判 FAIL；
      `references/00-project-layout.md` 对 `00-DECISIONS.md` 是**硬零**（AC1 逐字要求）。
@@ -14,8 +14,12 @@
   G3 发布边界：发布面不得出现本机绝对路径与用户名；`.gitignore` 对已出仓目录必须给**可重建来源**（引擎血统串）。
   G4 台账完整：`CHANGELOG.md` D-13 §遗留 必须覆盖 N-1…N-10 全部十条，每条有级别·状态 + 落点（任务 id 或"不修"）。
   G5 编号唯一：`## D-n` 二级标题编号不得重复。
+  G6 执行目录纯净：仓根出现论文项目执行目录（00-admin/10-data/… 及 manuscript/lit 等旧布局名）即 FAIL
+     ——本仓只放通用 skill，试点与执行一律在独立项目目录（2026-09-28 用户裁定）。
+  G7 发布清单完整：`MANIFEST.in` 纯白名单——清单内路径必须在盘、发布目录盘面文件必须被清单覆盖、
+     开发层文件（本脚本自身）不得入清单、`VERSION` 必须在盘且为 vX.Y.Z 形态。
 
-只读承诺：本脚本不写任何文件（`--selftest` 的控制用例全在内存）。
+只读承诺：不写本仓任何文件（`--selftest` 的文本用例全在内存；G6/G7 反向对照写**系统临时目录**，用毕即删）。
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ import argparse
 import pathlib
 import re
 import sys
+import tempfile
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -44,7 +49,7 @@ MACHINE_PATH = re.compile(r"[A-Za-z]:[\\/]{1,2}[Uu]sers[\\/]"
 # G3：引擎血统的可重建来源（三条同时缺任何一条即"只说没了、不说怎么重建"）
 BLOOD = ("orchd-core", "v1.5.0", "32b4192")
 
-SCOPE_REL = ("SKILL.md", "README.md", "CHANGELOG.md", ".gitignore",
+SCOPE_REL = ("SKILL.md", "README.md", "CHANGELOG.md", ".gitignore", "MANIFEST.in", "VERSION",
              ".orchd/shared/conventions.md", ".orchd/shared/architecture.md")
 N_IDS = tuple(range(1, 11))          # 09-26 审查报告的 N-1…N-10
 TASK_ID = re.compile(r"`?(task-[a-z0-9-]+)`?")
@@ -66,9 +71,71 @@ def read_text(rel: str) -> str:
 
 
 def scope_files(texts: dict) -> list:
-    """发布面清单：固定件 + references/ 全量（以磁盘为准，不假设文件名）。"""
+    """发布面清单：固定件 + references/ 与 static/ 全量（以磁盘为准，不假设文件名）。"""
     out = [r for r in SCOPE_REL if r in texts]
     out += [k for k in sorted(texts) if k.startswith("references/") and k.endswith(".md")]
+    out += [k for k in sorted(texts) if k.startswith("static/")]
+    return out
+
+
+# ---- G6 执行目录纯净 + G7 发布清单完整（task-release-manifest）------------------
+# G6：论文项目执行目录的特征名——skill 开发仓的仓根出现任何一个即失纯。
+BANNED_ROOT_DIRS = ("00-admin", "10-data", "20-lit", "30-manuscript", "40-figures",
+                    "50-review", "60-latex", "90-notebooks",
+                    "manuscript", "lit", "figures", "latex", "notebooks", "working", "documents")
+# G7：发布目录与开发层豁免。DEV_TIER 刻意不入 MANIFEST——76 号机检的是本仓自身卫生，装出去必红。
+SHIP_DIRS = ("profiles", "scripts", "assets", "references", "static")
+DEV_TIER = {"scripts/76-doc-refs-selftest.py"}
+VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+")
+
+
+def root_purity_violations(root: pathlib.Path) -> list:
+    return ["仓根出现论文项目执行目录 %s/（skill 开发仓必须零执行件，试点一律独立项目目录）" % d
+            for d in BANNED_ROOT_DIRS if (root / d).is_dir()]
+
+
+def manifest_violations(root: pathlib.Path) -> list:
+    mf = root / "MANIFEST.in"
+    if not mf.exists():
+        return ["MANIFEST.in 不在盘——发布面缺单一真源"]
+    listed, out = [], []
+    for i, line in enumerate(mf.read_text(encoding="utf-8-sig").splitlines(), 1):
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        m = re.match(r"^include\s+(\S+)$", s)
+        if m:
+            listed.append(m.group(1))
+        else:
+            out.append("MANIFEST.in:%d 非白名单指令（只支持 include <路径> 与 # 注释）：%s" % (i, s[:50]))
+    listed_set = set(listed)
+    for rel in sorted(listed_set):
+        if not (root / rel).exists():
+            out.append("清单列了不在盘的路径：%s" % rel)
+    for d in SHIP_DIRS:
+        dp = root / d
+        if not dp.is_dir():
+            out.append("发布目录不在盘：%s/" % d)
+            continue
+        for p in sorted(dp.rglob("*")):
+            if not p.is_file():
+                continue
+            rel = p.relative_to(root).as_posix()
+            if "__pycache__" in rel or rel.endswith(".pyc"):
+                continue          # 编译噪声，开发层
+            if rel in DEV_TIER:
+                if rel in listed_set:
+                    out.append("开发层文件被列入清单：%s（本脚本只服务本仓卫生，装出去必红）" % rel)
+                continue
+            if rel not in listed_set:
+                out.append("发布文件未被清单覆盖：%s" % rel)
+    vp = root / "VERSION"
+    if not vp.exists():
+        out.append("VERSION 不在盘（发布物缺版本标识）")
+    else:
+        head = vp.read_text(encoding="utf-8-sig").strip().splitlines()
+        if not head or not VERSION_RE.match(head[0].strip()):
+            out.append("VERSION 首行非 vX.Y.Z 形态：%s" % (head[0][:30] if head else "空文件"))
     return out
 
 
@@ -240,6 +307,12 @@ def check(texts: dict) -> list:
                         continue      # 语境已声明"另一套命名 / 尚未建 / 按需再生"，不是悬空引用
                     fail("G2", "%s:%d 引 %s，但该路径不在盘（同行亦无 planned/冻结/按需等声明词）"
                          % (rel, i, target))
+
+    # ---- G6 执行目录纯净 + G7 发布清单完整 ---------------------------------
+    for v in root_purity_violations(ROOT):
+        fail("G6", v)
+    for v in manifest_violations(ROOT):
+        fail("G7", v)
     return fails
 
 
@@ -249,6 +322,9 @@ def load_snapshot() -> dict:
         texts[rel] = read_text(rel)
     for p in sorted((ROOT / "references").glob("*.md")):
         texts["references/" + p.name] = p.read_text(encoding="utf-8-sig", errors="replace").replace("\r\n", "\n")
+    for p in sorted((ROOT / "static").rglob("*")):
+        if p.is_file():
+            texts["static/" + p.name] = p.read_text(encoding="utf-8-sig", errors="replace").replace("\r\n", "\n")
     return texts
 
 
@@ -264,8 +340,8 @@ def run() -> int:
         for guard, detail in fails:
             print("  - %s  %s" % (guard, detail))
         return 1
-    print("[76] PASS  G1 死档案引用 / G2 小节约束 / G3 发布边界 / G4 十条台账 / G5 编号唯一 全绿（发布面 %d 文件）"
-          % len(scope_files(texts)))
+    print("[76] PASS  G1 死档案引用 / G2 小节约束 / G3 发布边界 / G4 十条台账 / G5 编号唯一 / "
+          "G6 执行目录纯净 / G7 发布清单完整 全绿（发布面 %d 文件）" % len(scope_files(texts)))
     return 0
 
 
@@ -425,6 +501,37 @@ def selftest() -> int:
         s["CHANGELOG.md"] = s["CHANGELOG.md"].replace("## D-14 接入", "## D-14 接入\n\n## D-15 重复编号条目\n")
 
     expect("G5-二级编号重复", dup_d15, "G5")
+
+    # G6/G7 反向对照：真实临时目录装配（系统临时目录，用毕即删，不触本仓）。
+    with tempfile.TemporaryDirectory() as td:
+        troot = pathlib.Path(td)
+        (troot / "MANIFEST.in").write_text("# clean\ninclude SKILL.md\ninclude scripts/70-verify.py\n", encoding="utf-8")
+        (troot / "VERSION").write_text("v0.1.0-0-g0000000\n", encoding="utf-8")
+        (troot / "SKILL.md").write_text("# x\n", encoding="utf-8")
+        for d in SHIP_DIRS:
+            (troot / d).mkdir(exist_ok=True)          # 正控制要求五个发布目录齐备（空目录=无未覆盖文件）
+        (troot / "scripts" / "70-verify.py").write_text("# y\n", encoding="utf-8")
+        ok_pos = not root_purity_violations(troot) and not manifest_violations(troot)
+        (troot / "10-data").mkdir()                                   # G6 负例：执行目录混入
+        (troot / "scripts" / "ghost.py").write_text("# z\n", encoding="utf-8")   # G7 负例：未覆盖
+        g67_neg = root_purity_violations(troot) + manifest_violations(troot)
+        ok_neg = (any("10-data" in v for v in g67_neg)
+                  and any("scripts/ghost.py" in v for v in g67_neg))
+        (troot / "MANIFEST.in").write_text("include SKILL.md\ninclude scripts/absent.py\n", encoding="utf-8")
+        miss = manifest_violations(troot)
+        ok_miss = (any("absent.py" in v for v in miss)
+                   and any("scripts/70-verify.py" in v for v in miss))
+        (troot / "MANIFEST.in").write_text("include SKILL.md\ninclude scripts/76-doc-refs-selftest.py\n", encoding="utf-8")
+        (troot / "scripts" / "76-doc-refs-selftest.py").write_text("# w\n", encoding="utf-8")
+        dev = manifest_violations(troot)
+        ok_dev = any("开发层文件被列入清单" in v for v in dev)
+        g67_ok = ok_pos and ok_neg and ok_miss and ok_dev
+        counters["control"] += 4        # 正控制 1 + 三组负例（执行目录/未覆盖、列缺、开发层入清）
+        print("  G6/G7 反向对照（临时目录）：正控制=%s 执行目录混入+未覆盖=%s 列缺/缺覆盖=%s 开发层入清=%s  %s"
+              % (ok_pos, ok_neg, ok_miss, ok_dev, "OK" if g67_ok else "MISMATCH"))
+        if not g67_ok:
+            bad.append("G6/G7 反向对照未全绿（正控制=%s 负例=%s 列缺=%s 开发层=%s）"
+                       % (ok_pos, ok_neg, ok_miss, ok_dev))
 
     if not counters["control"]:
         print("  FAIL  反向对照用例数为 0 → 自测面退化成空转")

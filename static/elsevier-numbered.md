@@ -1,4 +1,4 @@
-# Elsevier 编号制口径（逐条经真实 Elsevier 定稿验证；合稿脚本约束见 `scripts/72-assemble-draft.py` 同源规则）
+# Elsevier 编号制口径（逐条经真实 Elsevier 定稿验证；合稿脚本为各项目工具目录内的 72 号生产脚本，命名两制、按需在项目内生成）
 
 本碎片只管**引用与文献表的写法**。跨出版社共性条款在 `md-single-source.md`，图件与数据披露在
 `lab-experimental-reporting.md`。换刊 = 改领域档的 `fragments:` 声明，不改脚本。
