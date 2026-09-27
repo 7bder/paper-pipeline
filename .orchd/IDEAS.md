@@ -56,3 +56,9 @@
 - id: registry-existence-listed-direction
 - 论证: 背景：task-profile-clinical 合并后，profiles/ 下已有 00-base-empirical / 10-clinical / 10-materials-chemistry / 10-wbpu-kh550 四个 yaml，但 SKILL.md:121-122 的领域档表与 README.md:95-96 的目录树只列了材料与 wbpu 两档——新档对使用者不可见。pending 的 task-capability-registry-resync 声明了 SKILL.md/README.md/scripts/75-verify-selftest.py 三个文件，但它的 6 条 AC 全是「列出的路径必须存在」（listed→exists）方向，没有「存在的能力必须被列出」（exists→listed）方向，因此不会自动带上本项。落点建议：resync 的守卫按 PROFILES.glob('*.yaml') 取磁盘真源（与 scripts/78-assertions-selftest.py:71-75 的 domain_profiles() 同口径，注意排除 00- 基类），逐档断言其在 SKILL.md 表行与 README.md 目录树各出现一次，并核对其行内宣称的任务数等于生成器实测 tasks= 值（现 materials 24 / wbpu 26 / clinical 22，全部由 scripts/30-gen-proposals.py 输出首行可取）；反向对照两条——删一行必须变红、把行数写错必须变红。本项可在做 resync 时作为新增 AC 并入，无需另开文件；若并入则同时更新该任务卡的验收口径。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
+## 2026-09-27 2026-09-27 deep_merge 丢子档-only inject：基类无 inject 占位时域档的「只追加本域口径」整条静默失效（id: deep-merge-child-only-inject-dropped）
+- status: study
+- id: deep-merge-child-only-inject-dropped
+- 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
