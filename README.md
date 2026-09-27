@@ -3,9 +3,10 @@
 > 把"**手上已有一堆研究数据**"变成"**一篇可以直接投出去的英文 SCI 稿件**"的全套工作方法，
 > 封装成任务编排引擎 [orchd] 的一个原生技能。
 
-这是一个**开发工作空间**，与本机任何论文项目（paper1…paperN 等）
+这是一个**技能开发工作空间**，与本机任何论文项目（无论叫 paper1 还是别的）
 **无 git、无路径、无状态耦合**：论文项目里的 orchd 引擎不读本目录；本目录也不向论文项目写任何东西，
 除非某个脚本被显式以路径参数指过去。生成物由你（或引擎命令）手动投喂进论文项目。
+技能的**发布面清单**以 `MANIFEST.in` 为单一真源，安装方式见下方[安装与发布边界](#安装与发布边界)。
 
 ---
 
@@ -14,7 +15,8 @@
 orchd 这类任务引擎只给你一套状态机（claim → done → review）和 git 纪律，但它**不知道写论文这件事**：
 不知道论文该分几步、每步该产出什么、什么算"写完了"、文献怎么找才不浪费、数据口径怎么才不漂移。
 
-而真实写一篇论文（从学位论文/项目数据改写成 SCI）会反复踩同一批坑：
+而真实写一篇论文（从学位论文/项目数据改写成 SCI）会反复踩同一批坑
+（下表症状均来自真实项目实测，仅作例证）：
 
 | 坑 | 真实症状 |
 |---|---|
@@ -23,8 +25,10 @@ orchd 这类任务引擎只给你一套状态机（claim → done → review）�
 | **口径漂移** | n=1 的数据敢写 significantly，没测 EIS 敢给阻抗结论，纵轴截断夸大差异 |
 | **返工地狱** | md 改一遍、tex 改一遍，两边分叉；投稿前才发现编号和文献表对不上 |
 
-paper-pipeline 就是把这篇论文（paper1，材料涂层方向）一路踩坑沉淀下来的打法，反过来做成可复用的技能。
-它只做三件引擎不做的事：**领域知识**（profiles/）、**可机检的验收判据**（scripts/）、**踩过的坑**（references/ + 决策记录）。
+paper-pipeline 把这些从真实论文项目中踩坑沉淀下来的打法做成可复用技能
+（各决策的项目出处统一记录在 [`CHANGELOG.md`](CHANGELOG.md) 的 D-1…D-17 条目）。
+它只做三件引擎不做的事：**领域知识**（`profiles/`）、**可机检的验收判据**（`scripts/`）、
+**踩过的坑**（`references/` + 决策记录）。
 
 ## 核心亮点
 
@@ -40,9 +44,10 @@ paper-pipeline 就是把这篇论文（paper1，材料涂层方向）一路踩�
 
 3. **profile 驱动，加一个领域 = 加一个 YAML。**
    所有学科差异（证据形态、禁止的论断、必检清单、图件要求、引用策略）都写在 profile 里，
-   用 `extends` 继承基类。paper2 只是把 evidence_form 从"普通实验"换成"Origin 工程 + 有 EIS"，
-   就自动多出"Origin 数据分离导出""补实验裁定"两个任务，并把"禁止阻抗结论"改成
-   "阻抗结论必须有等效电路拟合依据"——**不改一行代码**。
+   用 `extends` 继承基类。例证（真实项目 paper2）：把 evidence_form 从"普通实验"换成
+   "Origin 工程 + 有 EIS"，就自动多出"Origin 数据分离导出""补实验裁定"两个任务，并把
+   "禁止阻抗结论"改成"阻抗结论必须有等效电路拟合依据"——**不改一行代码**。
+   已随技能发货的领域档见下方目录结构；新增领域档时 `extends` 基类、只写学科差异。
 
 4. **每个任务都有机器可判的验收。**
    不是"写完了就行"，而是每个 done 之前由 `70-verify.py` 跑断言：
@@ -51,13 +56,16 @@ paper-pipeline 就是把这篇论文（paper1，材料涂层方向）一路踩�
 
 5. **md 单一真源，LaTeX 只是派生物。**
    正文只在 `30-manuscript/*.md` 里改，`.tex` 由脚本生成（头部标 `GENERATED — do not edit`）。
-   这样"编号↔文献表一致""图表全覆盖""术语归一"这些检查才能全部脚本化——paper1 因此一次都没在编号上返工。
+   这样"编号↔文献表一致""图表全覆盖""术语归一"这些检查才能全部脚本化
+   ——出处项目（paper1）的定稿因此一次都没在编号上返工。
 
 6. **严守边界：只生成，不替你做主。**
    它生成 proposals 给引擎校验，但**注册任务永远由你执行**；选题、拆几篇、选哪个刊、
    做不做补实验、投稿——这些策略判断全部是人工闸门，agent 不替你拍板。
 
 ## 一次完整使用长什么样
+
+**示例（真实项目改编，人机对话示意）**：
 
 ```
 你："我手上有 KH-550 改性水性聚氨酯的防腐数据，想写一篇 SCI"
@@ -89,24 +97,30 @@ paper-pipeline 就是把这篇论文（paper1，材料涂层方向）一路踩�
 paper-pipeline/
 ├── SKILL.md                  技能入口（机器读：何时触发、阶段序、协同契约、硬约束）
 ├── README.md                 本文件（人读）
-├── CHANGELOG.md              设计决策记录 D-1…D-12（为什么这么定，含引擎实测坑）
+├── MANIFEST.in               发布面清单（单一真源；由发版流程维护）
+├── CHANGELOG.md              设计决策记录 D-1…D-17（为什么这么定，含引擎实测坑）
 ├── profiles/                 领域档（四轴：论文类型×证据形态×出版社×语言/报告规范）
-│   ├── 00-base-empirical.yaml    通用基类：证据口径 + back-matter + P-1 资产规划
-│   ├── 10-materials-chemistry.yaml   材料/化工/涂层（paper1 反推，24 任务）
-│   └── 10-wbpu-kh550.yaml       paper2 试点（Origin 工程 + EIS，26 任务）
+│   ├── 00-base-empirical.yaml        通用基类：证据口径 + back-matter + P-1 资产规划
+│   ├── 10-materials-chemistry.yaml   材料/化工/涂层（源自真实项目 paper1，回归基线档，24 任务）
+│   ├── 10-wbpu-kh550.yaml            paper2 试点档（Origin 工程 + EIS 例证，26 任务）
+│   ├── 10-clinical.yaml              临床档（效应量 CI 页级核对 / 伦理注册 / CONSORT-STROBE）
+│   ├── 20-social-science.yaml        社科档（抽样框代表性 / 信效度 / κ-α 编码一致性 / 因果措辞）
+│   └── 30-cs-ml.yaml                 CS/ML 档（baseline 原文 + 复现声明）
 ├── scripts/                  判据与生成脚本（全部离线、秒级）
 │   ├── 30-gen-proposals.py    profile → proposals/master/rules/断言片段
+│   ├── 35-refs-gate.py        文献验真门控（多索引交叉 + 三态判定 + 缓存）
+│   ├── 40-style-check.py      无 AI 腔机检（词表驱动）
+│   ├── 45-consistency-check.py 编号/图表/术语/字数一致性
 │   ├── 70-verify.py           判据基座（manifest 驱动的结构化验收）
-│   └── 75-verify-selftest.py  基座自测（合成用例 + 真实项目 parity）
+│   ├── 75-verify-selftest.py  基座自测（合成用例 + 生成器/碎片/编码/注册表守卫）
+│   ├── 78-assertions-selftest.py  profile 实质断言棘轮守卫
+│   └── 76-doc-refs-selftest.py    本仓文档卫生自检（开发层，不入发布面）
 ├── assets/                   投喂模板（proposal 模板、verify manifest 模板）
-├── references/                运行手册（按阶段号命名）
-│   ├── 00-project-layout.md   目录/命名规范 + orchd 联合约束检查表
-│   ├── 10-idea-to-skeleton.md   立项交互（idea → 骨架契约）
-│   ├── 20-claim-framework.md    claim 需求单 + 证据门限 + 引用落位机检
-│   ├── 30-literature-pipeline.md 定向文献流水线
-│   └── 40-draft-to-latex.md      md 真源 → LaTeX 装配
-├── build/                    本机开发期生成物沙盒（`.gitignore` 内，不入库；随时可重生成）
-└── reports/                  本机审计档案（审查报告等，不入库，见 §发布边界）
+├── references/               运行手册（按阶段号命名，见 SKILL.md 资源索引）
+├── static/                   跨出版社/制式规则碎片（manifest.yaml 索引，profile 按需声明注入）
+├── build/                    本机生成物沙盒（不入库；随时可重生成）
+├── reports/                  本机审计档案（不入库）
+└── .orchd/                   开发编排引擎工作区（开发层，不入发布面）
 ```
 
 ## 与 orchd 的接法（唯一正确姿势）
@@ -132,51 +146,44 @@ paper-pipeline/
 
 其余（数据核对、文献检索验真、逐节写作、合稿、引用审计、LaTeX 排版、机检）都由 agent + orchd 自动推进。
 
+## 安装与发布边界
+
+**发布面以 `MANIFEST.in` 为单一真源**：清单内 = 发布，清单外 = 开发层（待建：`task-release-manifest` 落地清单本体）。
+安装器 `install.py`（待建：归 `task-installer`）按清单装配，两种模式：
+
+```bash
+# skill 模式：整套发布面装进宿主的 agent 技能目录
+git clone <本仓地址> && python paper-pipeline/install.py <技能目录> --mode skill --cleanup
+# project 模式：判据基座 vendor 进论文项目（70-tools/ 规范路径）
+python paper-pipeline/install.py <论文项目>/ --mode project --profile <profile 文件名>
+```
+
+**开发层（不入发布面）**：`.orchd/`（开发编排引擎工作区）、`build/`（生成物沙盒）、
+`reports/`（审计档案）、`docs/`（引擎血统件，待出仓）、`scripts/76-doc-refs-selftest.py`
+（本仓文档卫生自检——机检的是本仓自己的台账与引用，装出去无意义）。
+本目录**永不承载论文项目执行件**：试点与生成一律在独立项目目录进行，`build/` 只放生成物沙盒。
+
 ## 开发与回归
 
-- **回归基线**：paper1 的 21 个真实 proposal 与 verify manifest 是"标准答案"。
-  任何生成器改动都必须能重生成等价集合且 `validate` 通过（`--regress` 对比）。
-- **自测**（改基座或换 profile 后必跑，两条命令按原文逐条复制执行均应退出码 0；守卫条目随能力演进增删，不在此绑定具体数字）：
+- **回归基线**：真实项目（paper1）的已完工 proposal 集与 verify manifest 是"标准答案"。
+  任何生成器改动都必须能对真实项目重生成等价集合且 `validate` 通过（`--regress --project` 比对）。
+- **自测**（改基座或换 profile 后必跑，两条命令按原文逐条复制执行均应退出码 0；
+  守卫条目随能力演进增删，不在此绑定具体数字）：
   - `python scripts/75-verify-selftest.py`——合成控制用例（每个断言类型一对"应过/应失败"）+ 生成器/碎片/编码/注册表守卫面
   - `python scripts/78-assertions-selftest.py`——profile 实质断言棘轮（下限 + 形状 + 正反控制 + 反向对照）
 - **多领域验收（唯一可信证明）**：用一个**非材料领域**的最小真实项目跑通 `validate` + 1–2 个真任务闭环；不通过不发布。
 
-## 发布边界
+## 当前状态
 
-技能发货只需 `SKILL.md` + `profiles/` + `scripts/` + `assets/` + `references/`。
-以下为开发期产物，打包时排除（已在 `.gitignore`）：
-
-| 排除项 | 本机现状（实测） | 重建方式 |
-|---|---|---|
-| `build/` | 存在，28 文件 / 144,783 B（141.4 KiB），未被 git 跟踪 | 重跑 `30-gen-proposals.py --profile profiles/<x>.yaml --out build` |
-| `reports/` | 存在，1 文件 / 19,585 B（09-26 审查报告），未被 git 跟踪 | 不重建：审计档案只在执行机留存，按需重跑审查 |
-
-`.gitignore` 共 10 条声明，按磁盘实测分三类：上表 2 条在本机存在；`_tmp-state.txt`（会话临时态）
-亦存在但未跟踪；其余 7 条在**仓库根目录**当前无此类目——其中 2 条是曾留仓、已随仓库卫生出仓的开发期目录
-（沿革见 `CHANGELOG.md` D-13/D-14/D-16，本节不重复维护），另 5 条为编译与引擎噪声面
-（`__pycache__/`、`*.py[cod]`、`.intake.lock`、`.layout.json`、`.lock`）。
-
-`.pyc` 的口径要划清两处：**发货面**（`SKILL.md` + `profiles/` + `scripts/` + `assets/` + `references/`）实测
-`*.pyc` = 0、`__pycache__/` = 0，机制是跨进程的 Python 调用带 `-B`、`importlib` 前置 `sys.dont_write_bytecode`
-（两处例外不需要它：manifest 的 `run` 断言按外部命令执行，`-c` 内联探针不落文件）；而 `.orchd/` 里的引擎副本
-另有 128 个 `.pyc`（引擎自身 import 产物，由 `.orchd/.gitignore` 整目录排除，不属发货面）。git 跟踪集内
-`*.pyc`/`__pycache__` 命中 0，故"不再生成"只对发货面与入库集合成立，不要按字面理解成全盘洁净。
-
-两条已实测的边界纪律：
-1. `--check` 对目标论文项目**零写入**（跑前跑后比对全树 mtime+size 为 0 变化；以 `python -B` 起引擎避免落 `.pyc`）。
-2. 不得在无 `.orchd` 的目录里以 cwd 调引擎——曾因此落下含本机绝对路径的锁文件。
-
-## 当前状态与 Roadmap
-
-**已完成**：生成器 + 判据基座 + 自测；paper1 回归 PASS（23 任务结构零差异）、paper2 试点 PASS；
-四种入口模式落地；12 条设计决策沉淀（见 `CHANGELOG.md`）。
+**已完成**：生成器 + 判据基座 + 自测；真实项目回归与试点验证通过（paper1 回归、paper2 试点，见 `CHANGELOG.md`）；
+四种入口模式落地；五个领域档（材料/临床/社科/CS-ML/试点）；17 条设计决策沉淀。
 
 **待建能力**：统一登记在 [`SKILL.md`](SKILL.md) 的「能力注册表」中，带落地路径与状态（planned/available）；
 可用性以磁盘文件是否存在为准，建好即把状态改为 available，不在此重复维护。
 
-**待人工推进事项**：正式引导 paper2（当前仅沙盒验证，需你指定论文项目目录）。
+**待人工推进事项**：正式引导下一个论文项目（需你指定项目目录）。
 
 ## 设计决策
 
 所有"为什么这么做"的来龙去脉（含 orchd 引擎实测出的 bug、迁移血的教训、全文获取路线取舍）
-都记录在 [`CHANGELOG.md`](CHANGELOG.md) 的 D-1…D-12 条目里——有疑问先查那里，不要凭印象重走老路。
+都记录在 [`CHANGELOG.md`](CHANGELOG.md) 的 D-1…D-17 条目里——有疑问先查那里，不要凭印象重走老路。
