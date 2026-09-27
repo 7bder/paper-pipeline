@@ -235,3 +235,13 @@
 
 - **`00-DECISIONS.md` 禁令保持**：本条目与 layout 改写均未引入该已消失档案的引用（76 号 HARD_ZERO 守卫继续有效）。
 
+## D-19 发布清单 MANIFEST + VERSION + 76 号 G6/G7 守卫（2026-09-28，task-release-manifest）
+
+- **决策**：开发/发布分离落地为**单一真源清单**——`MANIFEST.in` 纯白名单（清单内 = 发布，清单外 = 开发层），安装器（task-installer）按清单装配；`VERSION` 为发布物版本标识（`vX.Y.Z[-N-g<sha>]` 形态，git describe 口径）。纯净规则：本仓**永不承载论文项目执行件**（试点一律独立项目目录）。
+- **76 号新增两条守卫（各带临时目录反向对照）**：G6 执行目录纯净（仓根出现 00-admin/10-data/… 等 15 个执行/旧布局目录名即 FAIL）；G7 发布清单完整（清单列不在盘路径 / 发布目录文件未被覆盖 / 开发层文件入清单 / VERSION 缺失或形态错，任一即 FAIL）。static/ 全量纳入 76 扫描面（闭合 task-static-provenance-reframe 登记的守卫缺口），`MANIFEST.in`、`VERSION` 入固定发布面。
+- **MANIFEST 内容**：SKILL/README/CHANGELOG/VERSION/MANIFEST 自身 + profiles 6 档 + scripts 功能件 30/35/40/45/70 与自测件 75/78 + assets 2 模板 + references 7 篇 + static 5 件；**scripts/76 刻意不列**（开发层，本仓文档卫生自检）；`install.py` 由 task-installer 落地后追加。
+- **`docs/system-design.md` 出仓**：引擎血统件（9 行 stub，"宿主资产"），skill 自身文档零引用；可重建来源 = orchd-core（git 仓库，tag v1.5.0 = 32b4192，与 .gitignore 血统串同源）。
+- **task-static-provenance-reframe 的逐条对照归档**（该任务声明域不含 CHANGELOG，对照在此收口）：elsevier-numbered 6 处、md-single-source 3 处、lab-experimental-reporting 1 处——均为出处句式替换（"paper1 定稿"→"真实定稿验证/出处定稿实测"），8/9/7 条规则正文逐字未动；60 号 §3.4 去项目点名、保留防杜撰约束。
+- **守卫的靶子**：MANIFEST 删行/加不存在的路径、仓根新建执行目录、DEV_TIER 文件入清单、VERSION 被删或改坏形态——`python -X utf8 scripts/76-doc-refs-selftest.py` 必须 rc=1。
+
+
