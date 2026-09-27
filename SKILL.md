@@ -155,14 +155,14 @@ python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress --projec
 
 | 能力 | 落地路径 | 用途 / 何时用 | 状态 |
 |---|---|---|---|
-| 文献验真门控 | `scripts/35-refs-gate.py` | P3/P5：多索引交叉 + k 未命中计数 + 三态判定 + 缓存（需联网检索工具） | planned |
-| 无 AI 腔机检 | `scripts/40-style-check.py` | P4/P6：禁用词表/平行结构/hedging 覆盖（依赖 `static/` 词表碎片） | planned |
-| 一致性检查 | `scripts/45-consistency-check.py` | P5：编号↔文献表、图表覆盖、术语归一、字数预算 | planned |
-| orchd 运行手册 | `references/50-orchd-runbook.md` | 每个任务执行时：取证规范、探针与反向控制、反谄媚纪律 | planned |
-| 出版社规则碎片 | `static/` + `manifest.yaml` | 四轴（出版社/引用制/报告规范/语言）命中；建成前靠 profile 覆盖 | planned |
-| 临床 profile | `profiles/10-clinical.yaml` | 多域适配验证（效应量与 CI 页级核对） | planned |
-| 社科 profile | `profiles/20-social-science.yaml` | 多域适配验证 | planned |
-| CS/ML profile | `profiles/30-cs-ml.yaml` | 多域适配验证（baseline 原文 + 复现声明） | planned |
+| 文献验真门控 | `scripts/35-refs-gate.py` | P3/P5：多索引交叉 + k 未命中计数 + 三态判定 + 缓存（需联网检索工具） | available |
+| 无 AI 腔机检 | `scripts/40-style-check.py` | P4/P6：禁用词表/平行结构/hedging 覆盖（依赖 `static/` 词表碎片） | available |
+| 一致性检查 | `scripts/45-consistency-check.py` | P5：编号↔文献表、图表覆盖、术语归一、字数预算 | available |
+| orchd 运行手册 | `references/50-orchd-runbook.md` | 每个任务执行时：取证规范、探针与反向控制、反谄媚纪律 | available |
+| 出版社规则碎片 | `static/` + `manifest.yaml` | 四轴（出版社/引用制/报告规范/语言）命中；profile `fragments:` 声明即注入，未声明零回归 | available |
+| 临床 profile | `profiles/10-clinical.yaml` | 多域适配验证（效应量与 CI 页级核对） | available |
+| 社科 profile | `profiles/20-social-science.yaml` | 多域适配验证 | available |
+| CS/ML profile | `profiles/30-cs-ml.yaml` | 多域适配验证（baseline 原文 + 复现声明） | available |
 
 **建好后的动作**（一处改动，无需别处登记）：把该行 `状态` 改为 `available`，并在脚本行补一行
 调用用法；磁盘路径本身即索引。已建能力见前文各索引（脚本/资源/profiles）。
