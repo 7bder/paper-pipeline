@@ -1,4 +1,4 @@
-# 实验型稿件的图件与数据披露口径（来源：paper1 的 `figure_policy` / 数据侧断言）
+# 实验型稿件的图件与数据披露口径（来源：真实实验型定稿的 `figure_policy` / 数据侧断言）
 
 适用轴：`evidence_form: lab-experimental`。**跨域共性**写在本碎片；具体到某个学科的
 标准号与参数清单写在该学科档的 `evidence_policy.domain_checklist`，不要塞进这里。

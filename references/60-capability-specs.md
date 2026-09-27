@@ -168,7 +168,7 @@ fragments:
 
 ### 3.4 首个碎片内容要求（`static/elsevier-numbered.md`）
 
-只写本项目真实终稿口径（编号制 `[1]`、正文引用形式 `Ref. [n]`/上标、数字范围合并规则、DOI 是否必列、LaTeX 侧 `thebibliography`/`\bibitem` 约定、Graphical abstract 与 Highlights 有无），**逐条来自 paper1 定稿与 `references/40-draft-to-latex.md`，不得写教科书式通用常识**。每条须可被 45/70 类机检或人工一眼判。
+只写经真实定稿验证的口径（编号制 `[1]`、正文引用形式 `Ref. [n]`/上标、数字范围合并规则、DOI 是否必列、LaTeX 侧 `thebibliography`/`\bibitem` 约定、Graphical abstract 与 Highlights 有无），**逐条须来自某个真实项目的定稿验证并可回指出处（项目名不进碎片正文，出处记 `CHANGELOG.md` 沿革条目），不得写教科书式通用常识**。每条须可被 45/70 类机检或人工一眼判。
 
 ### 3.5 守卫面（进 `scripts/75-verify-selftest.py`，AC5）
 
