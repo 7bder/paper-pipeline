@@ -229,6 +229,29 @@ def run_rc_semantics_guards() -> int:
     return 1 if bad else 0
 
 
+def pick_profile_fixture(profiles_dir: pathlib.Path, prefer_child: bool = True) -> pathlib.Path | None:
+    """运行时选取 CLI 守卫的夹具档（task-selftest-fixture-decouple）：不写死任何领域档文件名。
+
+    prefer_child=True 优先 extends 非空的**子档**（保住"子档继承/deep_merge"类守卫的测试语义）；
+    无子档退化任一非 00- 基类档；全缺返回 None——调用方必须显式 SKIP，不得静默判 PASS。
+    """
+    try:
+        files = sorted(p for p in profiles_dir.glob("*.yaml") if not p.name.startswith("00-"))
+    except OSError:
+        return None
+    if not files:
+        return None
+    if prefer_child:
+        for p in files:
+            try:
+                head = p.read_text(encoding="utf-8-sig")
+            except OSError:
+                continue
+            if re.search(r"^extends:\s*\S", head, re.M):
+                return p
+    return files[0]
+
+
 def run_generator_guards() -> int:
     """断言展开为空 = done 门禁空转，生成器必须拒绝（2026-09-26 审查：redraw/draw-schematics
     曾因通配模板只覆盖文本文件而生成 `{}`）。正反控制：无二进制模板必须 die，有则必须非空。
@@ -274,15 +297,19 @@ def run_generator_guards() -> int:
     # emit 幂等：profile 删任务后，陈旧 task-*.json 必须被清理（审查：曾只增不删）
     with tempfile.TemporaryDirectory() as td:
         out = pathlib.Path(td) / "build"
-        prof = gen30.load_profile(HERE.parent / "profiles" / "10-wbpu-kh550.yaml")
-        built = gen30.build(prof)
-        with contextlib.redirect_stdout(io.StringIO()):
-            gen30.emit(built, prof, out)
-        stale = out / "proposals" / "task-zz-stale.json"
-        stale.write_text("{}", encoding="utf-8")
-        with contextlib.redirect_stdout(io.StringIO()):
-            gen30.emit(built, prof, out)
-        cases.append(("emit-stale-proposal-pruned", not stale.exists()))
+        fixture = pick_profile_fixture(HERE.parent / "profiles")
+        if fixture is None:
+            print("  SKIP  emit-stale-proposal-pruned（profiles 无可生成领域档，不判 PASS）")
+        else:
+            prof = gen30.load_profile(fixture)
+            built = gen30.build(prof)
+            with contextlib.redirect_stdout(io.StringIO()):
+                gen30.emit(built, prof, out)
+            stale = out / "proposals" / "task-zz-stale.json"
+            stale.write_text("{}", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                gen30.emit(built, prof, out)
+            cases.append(("emit-stale-proposal-pruned", not stale.exists()))
     print("== 生成器断言守卫 ==")
     bad = 0
     for name, ok in cases:
@@ -302,7 +329,9 @@ def run_gen_cli_guards() -> int:
     gen = HERE / "30-gen-proposals.py"
     profiles = HERE.parent / "profiles"
     mat = profiles / "10-materials-chemistry.yaml"
-    wbpu = profiles / "10-wbpu-kh550.yaml"
+    fx = pick_profile_fixture(profiles)
+    if fx is None:
+        print("  SKIP  CLI 夹具档缺失（profiles 无可生成领域档）——相关用例显式跳过，不判 PASS")
 
     def call(*args, cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen), *args],
@@ -335,27 +364,28 @@ def run_gen_cli_guards() -> int:
         cases.append(("锚点：旧控制流缺项目仍 rc=0 且落文件",
                       anchor.returncode == 0 and len(files) >= 2,
                       "rc=%d files=%d" % (anchor.returncode, len(files))))
-        for flag in ("--check", "--regress"):
-            outdir = base / flag.lstrip("-")
-            r = call("--profile", str(wbpu), flag, "--out", str(outdir))
-            cases.append(("%s 缺 --project → rc=2（非静默 0）" % flag, r.returncode == 2,
-                          "rc=%d %s" % (r.returncode, (r.stdout or r.stderr)[-90:])))
-            cases.append(("%s 的消息点名参数 project" % flag,
-                          "project" in (r.stdout + r.stderr),
-                          "stdout=%r" % (r.stdout or "")[-120:]))
-            left = [x.name for x in outdir.rglob("*")] if outdir.exists() else []
-            cases.append(("%s 缺 --project 不落任何生成物" % flag, not left, "落了 %s" % left))
-        plain = call("--profile", str(wbpu), "--out", str(base / "plain"))
-        cases.append(("纯生成路径仍 rc=0 且落盘（防过度收紧）",
-                      plain.returncode == 0 and not emptied(base / "plain"),
-                      "rc=%d %s" % (plain.returncode, (plain.stdout or plain.stderr)[-90:])))
-        both = call("--profile", str(wbpu), "--check",
-                    "--project", str(base / "noparam"), "--out", str(base / "withproj"))
+        if fx is not None:
+            for flag in ("--check", "--regress"):
+                outdir = base / flag.lstrip("-")
+                r = call("--profile", str(fx), flag, "--out", str(outdir))
+                cases.append(("%s 缺 --project → rc=2（非静默 0）" % flag, r.returncode == 2,
+                              "rc=%d %s" % (r.returncode, (r.stdout or r.stderr)[-90:])))
+                cases.append(("%s 的消息点名参数 project" % flag,
+                              "project" in (r.stdout + r.stderr),
+                              "stdout=%r" % (r.stdout or "")[-120:]))
+                left = [x.name for x in outdir.rglob("*")] if outdir.exists() else []
+                cases.append(("%s 缺 --project 不落任何生成物" % flag, not left, "落了 %s" % left))
+            plain = call("--profile", str(fx), "--out", str(base / "plain"))
+            cases.append(("纯生成路径仍 rc=0 且落盘（防过度收紧）",
+                          plain.returncode == 0 and not emptied(base / "plain"),
+                          "rc=%d %s" % (plain.returncode, (plain.stdout or plain.stderr)[-90:])))
+            both = call("--profile", str(fx), "--check",
+                        "--project", str(base / "noparam"), "--out", str(base / "withproj"))
         # 这里不要求 rc=0（那个"项目"没有 .orchd/，引擎侧当然会报），只要求**不是**被
         # 本任务新增的参数守卫拦下——否则等于把正路也堵了。
-        cases.append(("给了 --project 就不被新守卫拦下（不误伤正路）",
-                      "必须同时给" not in (both.stdout + both.stderr),
-                      "rc=%d %s" % (both.returncode, (both.stdout or both.stderr)[-140:])))
+            cases.append(("给了 --project 就不被新守卫拦下（不误伤正路）",
+                          "必须同时给" not in (both.stdout + both.stderr),
+                          "rc=%d %s" % (both.returncode, (both.stdout or both.stderr)[-140:])))
 
         # ==== 类 2：docstring 与 argparse 的旗标口径（N-4 文档面）====
         h = call("--help")
@@ -376,10 +406,11 @@ def run_gen_cli_guards() -> int:
                       "缺 --project 的用法行见上"))
         pos = re.findall(r"--(?:check|regress)\s+<", doc)
         cases.append(("位置参数写法 --regress <项目> 命中 0", not pos, "命中 %s" % pos))
-        legacy = call("--profile", str(wbpu), "--regress", str(HERE.parent))
-        cases.append(("锚点：位置参数写法必被 argparse 拒（rc=2）",
-                      legacy.returncode == 2 and "unrecognized" in (legacy.stderr or ""),
-                      "rc=%d %s" % (legacy.returncode, (legacy.stderr or "")[-90:])))
+        if fx is not None:
+            legacy = call("--profile", str(fx), "--regress", str(HERE.parent))
+            cases.append(("锚点：位置参数写法必被 argparse 拒（rc=2）",
+                          legacy.returncode == 2 and "unrecognized" in (legacy.stderr or ""),
+                          "rc=%d %s" % (legacy.returncode, (legacy.stderr or "")[-90:])))
 
         # ==== 类 3：multi-paper 的 P-1 注入假设（N-10）====
         anchor = snippet(
@@ -419,10 +450,31 @@ def run_gen_cli_guards() -> int:
                       not any(t["id"] == "task-data-asset-mapping" for t in datafirst["tasks"])
                       and not datafirst["problems"],
                       "problems=%s" % datafirst["problems"][:2]))
-        for name, path in (("materials", mat), ("wbpu", wbpu)):
+        zero_pairs = [("materials", mat)] + ([(fx.stem, fx)] if fx is not None else [])
+        for name, path in zero_pairs:
             b = gen30.build(gen30.load_profile(path))
             cases.append(("%s 档生成期 0 问题（零回归）" % name, not b["problems"],
                           "problems=%s" % b["problems"][:2]))
+
+        # ==== 夹具选取函数反向对照（合成 profiles 目录，不落盘真文件）====
+        with tempfile.TemporaryDirectory() as tp:
+            pdir = pathlib.Path(tp) / "profiles"
+            pdir.mkdir()
+            (pdir / "00-base.yaml").write_text("id: base\n", encoding="utf-8")
+            cases.append(("夹具选取：仅基类（00- 排除）→ None（SKIP 语义）",
+                          pick_profile_fixture(pdir) is None, ""))
+            (pdir / "10-child.yaml").write_text("id: child\nextends: 00-base.yaml\n", encoding="utf-8")
+            picked = pick_profile_fixture(pdir)
+            cases.append(("夹具选取：基类+子档→选中子档（继承语义保留）",
+                          picked is not None and picked.name == "10-child.yaml", ""))
+            (pdir / "20-plain.yaml").write_text("id: plain\n", encoding="utf-8")
+            picked2 = pick_profile_fixture(pdir)
+            cases.append(("夹具选取：子档优先于普通档",
+                          picked2 is not None and picked2.name == "10-child.yaml", ""))
+            (pdir / "10-child.yaml").unlink()
+            picked3 = pick_profile_fixture(pdir)
+            cases.append(("夹具选取：无子档退化任一非基类档",
+                          picked3 is not None and picked3.name == "20-plain.yaml", ""))
 
     print("== 生成器 CLI 与 P-1 注入守卫（N-4/N-10）==")
     bad = 0
