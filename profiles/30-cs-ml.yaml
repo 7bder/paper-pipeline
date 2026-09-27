@@ -23,9 +23,10 @@
 #     `verify_assertions_template` 是 list 而 deep_merge 对 list 整体替换 ⇒ 断言只能整块重写、无按任务合并；
 #   · 任务 id 与材料档的集合差 = 8（去掉 4 个材料特有、新增 4 个本域特有），口径是**生成物与合并视图**
 #     （`--out build/csml` 展开 24 份 vs 材料档 24 份，对称差实测 8），AC4 的上限按此核对；
-#     若只比两档文件自身 `tasks:` 列表则是 9——本档多一条**只补 `inject`**（reproducibility_statement、
-#     reporting_standard）的 `task-back-matter` 覆盖声明，而 `tasks:` 段按 id 合并、基类那条仍在，
-#     生成物层面两档都含 back-matter，差回落到 8；
+#     若只比两档文件自身 `tasks:` 列表则是 9——本档多一条**只带 `inject`**（reproducibility_statement、
+#     reporting_standard）的 `task-back-matter` 覆盖声明（该 inject 在当前实现下不生效，见本段末与
+#     任务表内 line 注释；但它确实让本档文件的 `tasks:` 列表多出一个 id），而 `tasks:` 段按 id 合并、
+#     基类那条仍在，生成物层面两档都含 back-matter，差回落到 8；
 #     **余量为 0**：8 个差集里 4 个来自改名（analyze-data→analyze-baselines、
 #     write-experimental→write-implementation），任何再次改名都直接计入差集并破 AC4，
 #     要改 id 必须先扩 AC4 上限或合并任务（2026-09-27 spec 审查 MINOR-4）；
@@ -52,7 +53,9 @@
 #      （scripts/70-verify.py:151），整列复制同一数值、每格填无意义数字串、同一条 Fig. 1 复制
 #      四行、620 词凑 word_count 的填充在计数上与合规产物不可区分——对抗实测 12 例填充中 10 例
 #      rc=0（M-03/M-04/M-06/M-07/M-08/M-08b/M-09/M-10 与 M-05/M-05b；后两例是"谎称已满足"的空壳，
-#      其数字位与"全部未满足"的诚实登记同一量级（实测 18~24），计数原语分不开二者），本档只能靠 AC
+#      其数字位随节号/页码位数浮动——同一空壳形态实测 22、27、31 乃至整列复制的 66，而"全部未满足"
+#      的诚实登记从 12 起（第五轮 MINOR-2：上一版写的闭区间"18~24"装不下这些同样合规的写法，已按
+#      实测改为浮动区间表述），两侧区间重叠 ⇒ 计数原语分不开二者），本档只能靠 AC
 #      文本 + 人工审查拦这类形态，需要新原语（如 count_distinct / 逐行分列匹配）才能机检。
 #   5) 收口行的行首契约无机检：`^待确认项` 这类以中文为锚点的正则命中不了任何 PROBES（探针样本
 #      全 ASCII），contains 只认子串，故「待确认项」写成表行也过。同样须先给 PROBES 补中文样本。
@@ -260,12 +263,26 @@ verify_assertions_template:
   # 32 的篇幅下限被 AC1 自己的"骨架为准"逃生条款作废。本轮三处的处置：13 回落**取推导值** 18；09 **删除该道**
   # （无可辩护值且分不开空壳与诚实登记）；32 先给 AC2 补上"不少于 5 条"的条数出处、再回落到推导值 10，
   # 篇幅只留无条件成立的上界 3500。
+  # **推导的第三种隐含前提：书写记法与装饰（第五轮 MAJOR-1 / MINOR-1 / MINOR-3 / MINOR-4 的教训）**
+  # 条数与列数之外，`\d`、`^\|\s*\d+` 这类计数还隐含"该形态用阿拉伯数字书写且不加装饰"。前三轮只对齐了
+  # 条数/列数，本轮把四类记法义务逐个写进 AC：09 行号只写数字本体（`**1**` 装饰实测 anchored_num=0）；
+  # 11 与 32 的出处须含阿拉伯数字写法；14 的 mean/std 不得省略整数位；13 的九格 mean±std 义务无条件
+  # （整格缺失走 11 的 G 编号，不得在格内写"未测"）。同时按第四轮的对称要求核对余量：13 与 14 的下限
+  # 在"列名/指标名写中文"的最薄合规写法下**余量为 0**（实测 18 与 15 恰等下限），已把上一版写成
+  # "实测最小 18/18"的两处注释改为最紧值。
   # 表格形态的出处纪律（第三轮 MAJOR-2）：`^\|` 与 `\|` 计数隐含"每行以竖线起头与收尾"的外框
   # 要求，GFM 允许省略首尾竖线，故该形态必须由 AC 明文规定（写了这句的是 11/13/14/09 **四张**表的 AC），
   # 否则就是拿正则偏好当判据（实测 T2#12：省略外框的 09 表 anchored 命中 0 被杀）。
+  # 同理，`^\|` 与 `\|` 的推导值把"表头行 + GFM 分隔行"各算作 1 个以竖线起头的行、并把两行各自的
+  # 分隔符计入总数（11 的 7＝5 表体＋表头＋分隔、56＝7×8；14 的 5 与 30 同此），故 AC 的「成表」
+  # 按 **GFM 有效表**理解——删掉 `| --- | --- |` 分隔行即不成立（实测 11：anchored=6/pipes=48 rc=1；
+  # 14：anchored=4/pipes=24 rc=1），此前提第五轮 MINOR-6 起在此点名，不再留在推导里当隐含假设。
   # anchored 计数的列契约约束：AC 未声明行号列的两张表（11-analysis 七列、14-table 五列）只准用
   # `^\|`（要求"成表的行"），不得用 `^\|\s*\d+`——后者实测会把方法名/配置名开头的合规行整表判死
   # （R-01/R-03：anchored_num=0）；只有 AC 明列行号的 09 表才用 `^\|\s*\d+`。
+  # 同一失效面的另一半（第五轮 MAJOR-1）：`^\|\s*\d+` 要求数字紧跟行首竖线，行号单元格加粗/加括号/
+  # 加行内码（`**1**`、`(1)`、`` `1` ``）即命中 0——三种写法在补明文前都属 AC 合规产物却整表判死，
+  # 故 09 AC1 已把"行号列只写阿拉伯数字本体、不得装饰"写成明文，装饰写法现由 AC 判不合规。
   - task: task-skeleton-contract     # AC「02-skeleton 逐节论点/预算」「01-meta 字段与 skeleton 一致」
     files:
       - path: 00-admin/02-skeleton.md
@@ -273,19 +290,19 @@ verify_assertions_template:
     json_files:
       - path: 00-admin/01-meta.json
         min_items: 5
-        require_keys: ["title", "target_journal", "citation", "word_budget", "figures", "tables"]   # AC2（task-skeleton-contract 第 2 条）明列 5 个字段：标题、目标刊、引用制、字数预算、图表数——其中"图表数"落成 figures + tables 两键，故键要求 6 个；min_items 5 = AC2 那 5 个字段的数量下限（顶层为 dict 时 min_items 检的是**键数**，scripts/70-verify.py:179 与 :183-188；顶层为列表时检条目数）；require_keys 检第 1 个元素应含的键（scripts/70-verify.py:39）
+        require_keys: ["title", "target_journal", "citation", "word_budget", "figures", "tables"]   # AC2（task-skeleton-contract 第 2 条）明列 5 个字段：标题、目标刊、引用制、字数预算、图表数——其中"图表数"落成 figures + tables 两键，故键要求 6 个；min_items 5 = AC2 那 5 个字段的数量下限（顶层为 dict 时 min_items 检的是**键数**，scripts/70-verify.py:179 与 :183-188；顶层为列表时检条目数）；require_keys **分形态**：`01-meta.json` 顶层是 dict，走 scripts/70-verify.py:183-188 检"该 dict 自身是否含此键"（缺任一键即 FAIL，失败原文形如 `dict missing key 'tables'`）；list 顶层才走 :39/:192-199 检第 1 个元素（第五轮 MINOR-5 纠正上一版只述 list 语义的注释）
   - task: task-analyze-baselines     # AC「baseline 七列表头逐行核对（表号+页码）」「逐种子值与 mean ± std」
     files:
       - path: 10-data/11-analysis.md
         contains: ["原文", "页码", "复现", "种子"]
         min_matches: { pattern: "^\\|", min: 7 }             # AC1「不少于 5 条 baseline、每行以竖线起头收尾」：5 表体 + 表头 + 分隔行 = 7 个以竖线起头的行；AC 未声明行号列，故只锚"行首有竖线"
       - path: 10-data/11-analysis.md
-        min_matches: { pattern: "\\d", min: 30 }             # AC1 的 5 行 × 每行 ≥6 位（原文值/复现值/std/表号页码）
+        min_matches: { pattern: "\\d", min: 30 }             # AC1 的 5 行 × 每行 ≥6 位（原文值/复现值/std/表号页码）；第五轮 MINOR-1 给 AC1 补了「表号与页码须含阿拉伯数字写法」的明文，此前该推导隐含记法假设。补明文后仍不构成误杀：按 AC1+AC2 全合规的最薄 5 行表（出处写 `Table A1, p. xii` 附录记法 + 表外写逐种子值）实测 **digits=142 rc=0**，同表出处换算成阿拉伯写法 digits=147 rc=0 ⇒ 本道下限由 AC2 的逐种子值义务兜住，离 30 有巨大余量（上一轮独立取证给的"digits=20 被杀"样本漏写逐种子值，不属 AC 合规产物，已驳回）
       - path: 10-data/11-analysis.md
-        min_matches: { pattern: "\\|", min: 50 }             # AC1 的 5 行 × 每行 8 个分隔（七列 + 外框）＝40，加表头与分隔行 16 ⇒ 56，取 50 留余量
+        min_matches: { pattern: "\\|", min: 50 }             # AC1 的 5 行 × 每行 8 个分隔（七列 + 外框）＝40，加表头与分隔行 16 ⇒ 56，取 50 留余量；推导含"表头 + GFM 分隔行"两行的贡献（删分隔行即 anchored=6/pipes=48 被杀，实测 `VE_11_nosep` rc=1——GFM 下无分隔行不成表，判据可辩护，前提已写进下方「表格形态的出处纪律」）
       - path: 10-data/13-table-main-results.md
         contains: ["均值", "标准差"]
-        min_matches: { pattern: "\\d", min: 18 }             # AC3「≥3 指标行 × ≥3 比较列」＝9 格，取最弱读法每格 mean 与 std 各 1 位 ⇒ 2 位/格，9×2＝**18**（本轮由 20 回落：20 会把按此读法手写的合规最小表判死，实测 digits=18）；若按 AC3 括注「两位小数」强读法则 ≥36，本档取下界以免误杀，两位小数口径由 AC 文本 + 人工审查判
+        min_matches: { pattern: "\\d", min: 18 }             # AC3「≥3 指标行 × ≥3 比较列」＝9 格，取最弱读法每格 mean 与 std 各 1 位 ⇒ 2 位/格，9×2＝**18**（本轮由 20 回落：20 会把按此读法手写的合规最小表判死，实测 digits=18）；若按 AC3 括注「两位小数」强读法则 ≥36，本档取下界以免误杀，两位小数口径由 AC 文本 + 人工审查判。**余量为 0**：列名与指标名全写中文（AC3 只要求"列名与口径逐字写中文 均值 / 标准差"，未要求含数字）时九格最薄表实测恰 digits=18 rc=0，任一格改写即跌破 ⇒ 第五轮 MINOR-4 已在 AC3 补明文"九格义务无条件，整格无数据须走 11 的 G 编号缺口、不得在格内写未测/不主张"，故"八格最薄 + 一格未测"（实测 digits=16 rc=1）现为 AC 不合规而非误杀
       - path: 10-data/13-table-main-results.md
         min_matches: { pattern: "\\|", min: 18 }             # AC3 的 3 指标行 + 表头 + 分隔 = 5 行 × 每行 5 个分隔（3 比较列 + 指标列 = 4 列，加外框）＝推导值 **25**，实测合规最小表 pipes=25；声明下限取 25 之下、仍能拦住"每行不足 4 列"的裸填充。上一版注释写"每行 4 个分隔（3 列 + 外框）＝20"是算错（把 AC3 的"3 个比较列"当成全表列数，漏了指标列）
       - path: 40-figures/40-figure-specs.md
@@ -296,11 +313,12 @@ verify_assertions_template:
       - path: 00-admin/09-reproducibility.md
         contains: ["代码", "随机种子", "超参数", "许可", "状态", "定位", "待确认项"]
         forbid_regex: ["部分满足", "基本满足", "大致满足"]        # AC1 规定状态只能取三态之一；值域外的中间措辞是"把缺项糊过去"的常态写法
-        min_matches: { pattern: "^\\|\\s*\\d+", min: 6 }    # AC1 明列「行号 1..6」与外框形态：六要素各行以竖线起头且紧跟行号（下限=要素数，不缺任何一行）
+        min_matches: { pattern: "^\\|\\s*\\d+", min: 6 }    # AC1 明列「行号 1..6」「外框形态」与「行号列逐格只写阿拉伯数字本体，不得加粗/加括号/加行内码」（第五轮 MAJOR-1 补明文）：六要素各行以竖线起头且紧跟行号（下限=要素数，不缺任何一行）。补明文前该道会把 `**1**`/`(1)`/`` `1` `` 三种同样合规的写法判死（实测 anchored_num=0、rc=1，而 pipes=48/anchored=8 与裸数字版逐项相同），属把正则偏好当判据；现由 AC 承担该形态义务。
       # 本任务**不设 `\d` 下限**（第四轮 MAJOR-1 删除上一版的 min 24）：AC 可辩护的最小数字位是 12
       # （6 个行号 + 每行定位列 1 位），而它已被上面 `^\|\s*\d+` min 6 完全隐含 ⇒ 取 ≤12 是摆设；
-      # 实测「六要素全未满足」的零准备诚实登记 digits=18 被 24 判死，而谎称已满足的空壳只要页码写两位
-      # 就是 24 并放行——该道下限只杀合法、不杀非法。数字位分不开二者已由档头约束 4 登记。
+      # 而诚实登记的数字位随"节号/页码写不写"浮动（实测同一条 AC 下 12、18、24 三档都有），
+      # 谎称已满足的空壳也在同一区间浮动（实测 22、27、31、66）⇒ 那道下限只会杀掉合规写法这一侧，
+      # 分不开二者（档头约束 4）。第五轮 MAJOR-1 只补了行号书写形态的 AC 明文，未复活这道下限。
       - path: 00-admin/09-reproducibility.md
         min_matches: { pattern: "\\|", min: 30 }            # AC1 的 6 表体 + 表头 + 分隔 = 8 行 × 每行 6 个分隔（五列 + 外框）＝推导值 **48**（上一版"≥5 个分隔…＝40"漏算了首尾外框各一个），实测合规最小表 pipes=48；声明下限取 30（低于推导值 ⇒ 不误杀），真实拦截面是"把词元竖排成单列/行列数不足"的裸表，不是空壳判据
   - task: task-write-implementation  # AC「实现节含 Datasets/Baselines/Implementation/Metrics」
@@ -308,14 +326,14 @@ verify_assertions_template:
       - path: 30-manuscript/sections/32-implementation.md
         contains: ["Datasets", "Baselines", "Implementation", "Metrics"]
         word_count: [1, 3500]                               # AC1 原文是「正文篇幅 600–3500 词（`02-skeleton.md` 给本节更小预算时以骨架为准）」——**带逃生条款**，故本轮只保留无条件成立的上界 3500，删掉下界 600：词数原语没有条件语义，骨架给 <600 预算时按 AC 写的合规短节（实测 295 词、482 词）会被判死；"本节不为空"已由通配档 min_bytes 200 兜住。凑词数不可检（档头约束 4）
-        min_matches: { pattern: "\\d", min: 10 }            # AC2（第四轮补明文）「每条 baseline 与 11-analysis 同集合、不少于 5 条，各给表号 + 页码」⇒ 5 × 每处出处 ≥2 个数字位＝**10**；上一版的 20 无任何 AC 条数可推（违出处纪律）故回落到推导值。低于 10 即"整节零出处数字"，实测四子节名挤一行 + 650 词凑数的填充（digits=0）被这道咬住
+        min_matches: { pattern: "\\d", min: 10 }            # AC2「每条 baseline 与 11-analysis 同集合、不少于 5 条，各给表号 + 页码」⇒ 5 × 每处出处 ≥2 个数字位＝**10**；第五轮 MINOR-1 给 AC2 补了「出处须含阿拉伯数字写法」的明文（此前该推导隐含记法假设）。上一轮独立取证称"出处写中文数字 ⇒ digits=7 被杀"，我复测其构造（五条 baseline、单位数报告值 + `Table A, p. xii`）实得 **digits=11 rc=0**——方法名自带数字（ResNet-50/ViT-B/16/EfficientNet-B3），报告把这部分算成 0，该"误杀"不成立；照录两位小数报告值的合规短节 digits=31。本道的真实拦截面是"整节零出处数字"：四子节名挤一行 + 纯凑词正文（全文零数字，实测 digits=0）rc=1
   - task: task-tabulate-ablations    # AC「消融表五列表头逐行给 配置/指标/mean ± std（均值 ± 标准差）/方向/claim」+「图规格含误差棒与连续图号」
     files:
       - path: 10-data/14-table-ablations.md
         contains: ["消融", "标准差", "claim"]
         min_matches: { pattern: "^\\|", min: 5 }             # AC1「不少于 3 个消融行（含完整模型基准行）+ 每行以竖线起头收尾」：3 表体 + 表头 + 分隔 = 5；AC 五列里没有行号列，故只锚行首竖线
       - path: 10-data/14-table-ablations.md
-        min_matches: { pattern: "\\d", min: 15 }             # AC1 的 3 表体行 × 每行 ≥5 个数字位（mean 与 std 的数字位 + 指标名里的编号或 claim 号）＝推导值 15；实测合规最小表每行 6 位（`8.4 ± 0.1` + `Top-1` + `C-1`）⇒ digits=18，不误杀。若按 AC1 的 mean/std 写法强读成"两位小数"则每行 ≥21 位，本档取最弱读法的下界，不把余量当判据
+        min_matches: { pattern: "\\d", min: 15 }             # AC1 的 3 表体行 × 每行 ≥5 个数字位（mean 与 std 的数字位 + 指标名里的编号或 claim 号）＝推导值 15。**余量为 0**：最薄合规写法是指标列写中文（"准确率"，AC1 未要求指标名含数字）⇒ 每行 `3.4 ± 0.1` + `C-1` = 5 位、3 行 **digits=15 恰等下限 rc=0**（第五轮 MINOR-3 实测；上一轮注释写"实测最小 18"用的是 `Top-1` 指标名写法，非最紧最小值）。若按 AC1 的 mean/std 写法强读成"两位小数"则每行 ≥21 位，本档取最弱读法的下界，不把余量当判据。`0.4 ± 0.1` 省略整数位写成 `.4 ± .1`（每行 3 位，digits=12）现由 AC1 明文判不合规（实测 rc=1）
       - path: 10-data/14-table-ablations.md
         min_matches: { pattern: "\\|", min: 25 }             # AC1 的 3 表体 + 表头 + 分隔 = 5 行 × 每行 6 个分隔（五列 + 外框）＝30，取 25
       - path: 40-figures/40-figure-specs.md
@@ -393,9 +411,9 @@ tasks:
     name: baseline 原文核对与多种子方差分析
     brief: 出 baseline 原文报告值与本稿复现值的逐行核对表、多种子方差、主结果表与图表规格。
     ac:
-      - "baseline 原文核对（page-level）：`{data}/11-analysis.md` 以上述七项为表头列（方法名、指标、他方原文报告值、原文表号与页码、本稿复现值、mean ± std、偏差判定），逐行给一个 baseline 且不少于 5 条，每列各占一格、每行以竖线起头与收尾；与原文不一致者按 G 编号登记缺口，不得改写原文数值以对齐自家结果。"
+      - "baseline 原文核对（page-level）：`{data}/11-analysis.md` 以上述七项为表头列（方法名、指标、他方原文报告值、原文表号与页码、本稿复现值、mean ± std、偏差判定），逐行给一个 baseline 且不少于 5 条，每列各占一格、每行以竖线起头与收尾；原文表号与页码须以阿拉伯数字出现在同格内（原文用附录字母表号或前置罗马页码时，在同格并列写出阿拉伯写法，如 `Table A1（附录表 1）, p. xii（第 12 页）`），不得整列只给非阿拉伯记法；与原文不一致者按 G 编号登记缺口，不得改写原文数值以对齐自家结果。"
       - "`{data}/11-analysis.md` 给出每个指标的多种子聚合口径（均值/中位数、样本标准差）与逐种子值（阿拉伯数字，不得写“若干次运行”），且口径与 `{data}/10-audit.md` 一致。"
-      - "`{data}/13-table-main-results.md` 主结果表不少于 3 个指标行 × 3 个比较列（本方法 + ≥2 条 baseline），每格给 mean ± std 并可回指日志；本表是中文工作文档，列名与口径逐字写中文 均值 / 标准差（两位小数），每行以竖线起头与收尾；只报最优一次运行的单元格判为不合格。"
+      - "`{data}/13-table-main-results.md` 主结果表不少于 3 个指标行 × 3 个比较列（本方法 + ≥2 条 baseline），每格给 mean ± std 并可回指日志；本表是中文工作文档，列名与口径逐字写中文 均值 / 标准差（两位小数），每行以竖线起头与收尾；只报最优一次运行的单元格判为不合格；本表九格的 mean ± std 义务是无条件的——某格确实无数据时不得在格内写「未测/不主张」了事（那处标注义务约束的是结论层，见本任务 AC 末条），须在 `{data}/11-analysis.md` 按 G 编号登记缺口并使该主张不上主表。"
       - "`{fig}/40-figure-specs.md` 逐图给类型（曲线/柱状/散点）、坐标轴与单位、误差棒口径、缺失数据不补点的标注方式与图注必写项；条目不少于四条（主比较图、训练曲线、消融图、尺度或效率图），每条以 Fig. <数字> 起头。"
       - "结论不得超出 `{admin}/00-plan.md` 的边界；越界项显式标注为“未测/不主张”。"
     inject: [baseline_provenance, seed_variance, missing_data, forbidden_claims]
@@ -412,7 +430,7 @@ tasks:
     name: 复现声明登记（代码/超参/随机种子）
     brief: 逐行核对可复现六要素并以固定收口行声明有无待确认项。
     ac:
-      - "`{admin}/09-reproducibility.md` 以编号表格逐行登记六要素，表头列为 行号、要素、状态、取值与来源、正文定位（节 + 页或表图号），每行以竖线起头与收尾；六要素即 行号 1 代码来源与 commit、行号 2 运行环境与框架版本、行号 3 超参数搜索空间与选定值、行号 4 随机种子清单、行号 5 数据划分与版本及许可、行号 6 指标实现出处；状态取 已满足（附取值与来源文件）/ 未满足 / 不适用（写明理由）三态之一。"
+      - "`{admin}/09-reproducibility.md` 以编号表格逐行登记六要素，表头列为 行号、要素、状态、取值与来源、正文定位（节 + 页或表图号），每行以竖线起头与收尾；行号列逐格只写阿拉伯数字本体（`1`…`6`），不得加粗、加括号或加行内码装饰；六要素即 行号 1 代码来源与 commit、行号 2 运行环境与框架版本、行号 3 超参数搜索空间与选定值、行号 4 随机种子清单、行号 5 数据划分与版本及许可、行号 6 指标实现出处；状态取 已满足（附取值与来源文件）/ 未满足 / 不适用（写明理由）三态之一。"
       - "本文件末尾必须有「待确认项：」收口行：有缺失者逐条列出（格式 待确认项：<项目>：需谁提供什么），六要素均为 已满足 或 不适用 时写「待确认项：无」——该行不得整句省略，缺项以「不写这行」的形式消失即判不合格。"
       - "随机种子清单必须给出实际使用的种子值与每个种子对应的运行 ID（阿拉伯数字）；只写“固定随机种子”而不给数值者判未满足。"
       - "超参数条目须区分事前设定与搜索所得，并给搜索试验次数；无法核证者判为未满足，不得凭记忆填写。"
@@ -466,7 +484,7 @@ tasks:
     name: 消融表与消融曲线规格
     brief: 逐行出消融表（配置/指标/mean ± std/支撑 claim）与消融图的误差棒规格。
     ac:
-      - "`{data}/14-table-ablations.md` 以上述五项为表头列逐行给 配置、指标、mean ± std（均值 ± 标准差，阿拉伯数字到小数位）、相对完整模型的变化方向、该行支撑的 claim 编号（列名逐字用小写 claim），每列各占一格、每行以竖线起头与收尾；每个被主张为贡献的模块至少一行，且本表不少于 3 个消融行（含完整模型基准行）。"
+      - "`{data}/14-table-ablations.md` 以上述五项为表头列逐行给 配置、指标、mean ± std（均值 ± 标准差，阿拉伯数字到小数位，且个位为零时整数位仍照写 `0.4`——省略整数位的 `.4` 记法不合格）、相对完整模型的变化方向、该行支撑的 claim 编号（列名逐字用小写 claim），每列各占一格、每行以竖线起头与收尾；每个被主张为贡献的模块至少一行，且本表不少于 3 个消融行（含完整模型基准行）。"
       - "消融行的分母必须写明种子数与数据集划分；种子数 <3 的行按 G 编号登记缺口，不得以单次运行充当均值。"
       - "`{fig}/40-figure-specs.md` 的消融曲线/柱状图条目必须给误差棒口径（std 或置信区间）与缺失运行的处理方式；本任务负责的图与主比较图、训练曲线合计不少于四条图规格，每条以 Fig. <数字> 起头且逐条各占一行。"
       - "未做消融的贡献在本文件显式列为缺口，不得只在正文降级措辞。"
@@ -551,7 +569,7 @@ tasks:
     brief: 写 Implementation/Experimental Setup 节：数据集、baseline、实现与指标口径。
     ac:
       - "`{ms}/sections/32-implementation.md` 含 Datasets / Baselines / Implementation / Metrics 四个子节，正文篇幅 600–3500 词（`{admin}/02-skeleton.md` 给本节更小预算时以骨架为准），其参数与 `{data}/10-audit.md` 口径一致。"
-      - "每条 baseline（与 `{data}/11-analysis.md` 同集合，不少于 5 条）给出原文报告值与出处（表号 + 页码）及实现来源（官方代码/自实现），与 `{data}/11-analysis.md` 的核对表逐字一致。"
+      - "每条 baseline（与 `{data}/11-analysis.md` 同集合，不少于 5 条）给出原文报告值与出处（表号 + 页码，出处须含阿拉伯数字写法，口径与 `{data}/11-analysis.md` 的「同格并列写阿拉伯」条款一致）及实现来源（官方代码/自实现），与 `{data}/11-analysis.md` 的核对表逐字一致。"
       - "数据集给版本、许可、获取日期与划分口径；超参数与算力按 `{admin}/09-reproducibility.md` 的状态逐字落入本节，缺失项以「待确认」行原样呈现，不得改写为已完成、也不得删句。"
       - "该节引用只使用 `{lit}/22-refs.json` 中已验真条目，且与 `{lit}/20-claims-map.md` 的 section 落点一致。"
       - "不写未记录的参数（如搜索预算、硬件型号缺失时只写已知内容并标注待确认），不得臆造。"
@@ -751,6 +769,15 @@ tasks:
     difficulty: medium
     verify: "python {verify_tool} task-latex-build"
 
-  # 基类任务：只追加本域口径，不重写 AC（deep_merge 对同 id 的 inject 做追加合并）
+  # 基类任务：本条**当前不产生注入实效**（第五轮 MAJOR-2 纠正上一轮的相反叙述）。
+  # 事实链：deep_merge 的 inject 追加分支要求父子**双方都有** `inject`
+  # （scripts/30-gen-proposals.py:76），而 :82-84 的字段复制显式跳过 `inject` ⇒ 子档-only 的
+  # `inject` 既不走追加也不走覆盖，被静默丢弃。基类 `task-back-matter`（00-base-empirical.yaml:80）
+  # 无 `inject` 键，实测合并视图该任务键集里根本没有 `inject`，生成卡 `proposals/task-back-matter.json`
+  # 只有基类原样 3 条 AC、不含「复现声明六要素」「可复现性清单按 axes」任一（对照：同批
+  # task-write-implementation.json 有 inject，8 条 AC、「域口径约束」出现 3 次）。
+  # 保留本条只为把 back-matter 显式列进本档 `tasks:` 列表（文档意图：待基类补占位 `inject: []`
+  # 后即生效）。基类改动越出本任务声明面 ⇒ 回 main 后以 `idea propose` 落台账（拟用 id
+  # `deep-merge-child-only-inject-dropped`，实际 id 与提交结果见本轮 done 说明与后续 review 记录）。
   - id: task-back-matter
-    inject: [reproducibility_statement, reporting_standard]
+    inject: [reproducibility_statement, reporting_standard]   # 当前实现下被 deep_merge 丢弃，见上
