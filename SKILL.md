@@ -91,7 +91,7 @@ manifest 驱动的只读验收；每个任务的 `verify_command` 调用它。**
   - `globs[]`（批量产物）：`pattern`（支持 `**` 递归）、`min_count`、`min_bytes_each`
   - `absent_paths[]`：不得存在的路径（否定式验收）
   - `run`：额外命令，退出码非 0 即失败，超时 300 s（manifest 属受信输入，勿喂不可信来源）
-- 命名两制：新项目 `70-tools/70-verify.py`；paper1 冻结为 `scripts/verify.py`（22 条历史 verify_command 不可改，改名即失去回归能力）。
+- 命名两制：新项目 `70-tools/70-verify.py`；出处项目 paper1 冻结为 `scripts/verify.py`（22 条历史 verify_command 不可改，改名即失去回归能力）——该文件在 paper1 项目内，**不在本 skill 发货面**；两制沿革见 `CHANGELOG.md` D-18。
 
 ## 生成器（`scripts/30-gen-proposals.py`）
 
@@ -118,8 +118,8 @@ python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress --projec
 | 文件 | 角色 |
 |---|---|
 | `profiles/00-base-empirical.yaml` | 通用基类：evidence_policy（baseline/n 披露/raw-vs-processed/统计措辞/坐标轴/方法引用）、通用任务 `task-back-matter`、P-1 `task-data-asset-mapping`（仅 multi-paper 激活） |
-| `profiles/10-materials-chemistry.yaml` | 材料/化工/涂层档，继承基类，24 任务；`tool_dir: scripts`、`verify_tool: scripts/verify.py`（paper1 冻结名） |
-| `profiles/10-wbpu-kh550.yaml` | paper2 试点档，继承材料档，覆盖证据形态（Origin `.opju` 工程 + 有 EIS），26 任务；用 `70-tools/` 规范路径 |
+| `profiles/10-materials-chemistry.yaml` | 材料/化工/涂层档（例证：真实项目 paper1），继承基类，24 任务；`tool_dir: scripts`、`verify_tool: scripts/verify.py`（命名两制之冻结侧，该文件在 paper1 项目内） |
+| `profiles/10-wbpu-kh550.yaml` | 真实项目 paper2 试点档（例证），继承材料档，覆盖证据形态（Origin `.opju` 工程 + 有 EIS），26 任务；用 `70-tools/` 规范路径 |
 
 领域加严（如临床效应量与 CI、CS/ML 的 baseline 复现声明、理论引理依赖）由 profile 注入；新增领域档时 `extends` 基类并只写学科差异。
 
@@ -135,7 +135,7 @@ python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress --projec
 | `references/60-capability-specs.md` | 三项待建能力的动工前置规格：40 词表 schema 与三条判定 / 50 runbook 大纲与素材面 / static 碎片 manifest schema 与命中算法 | **实现待建能力前必读** |
 | `assets/00-proposal.template.json` | proposal 字段示范 | 新项目建 proposal 时 |
 | `assets/10-verify-manifest.template.json` | 各断言类型示例 | 新项目建 verify manifest 时 |
-| `CHANGELOG.md` | 设计决策 D-1…D-14 全文（本仓库实际决策记录位置；审查发现的 N-编号遗留清单在 D-13 §遗留） | 有疑问、判断引擎行为或回归时先查这里 |
+| `CHANGELOG.md` | 设计决策 D-1…D-18 全文（本仓库实际决策记录位置；审查发现的 N-编号遗留清单在 D-13 §遗留） | 有疑问、判断引擎行为或回归时先查这里 |
 
 ## 硬约束速查（来自设计决策，勿重走老路）
 
@@ -146,7 +146,7 @@ python -X utf8 scripts/30-gen-proposals.py --profile <x>.yaml --regress --projec
 - **文件组织（D-6）**：阶段号前缀 + 产物/临时物/原始件三分；中文仅存于 `10-data/raw/**` 且附 `MAPPING.md`；其余 ASCII kebab-case。
 - **md 单一真源（40-draft-to-latex）**：正文在 `30-manuscript/*.md`，`.tex` 是派生物（头部标 `GENERATED — do not edit`）；禁止在 `.tex` 里改句子；排版只在 `finalize` 之后进入。
 - **引擎部署（D-11）**：`.orchd/` 跟踪面对齐安装器契约（只豁免 `_master.json`、`shared/`、`IDEAS*.md`、`SKILL.md`、`__main__.py`、`rules/`、`VERSION`），引擎本体不入库；新项目引导顺序：基线提交 → vendor 引擎 → master 落项目内 → `init` → 提交 → `intake`（颠倒必失败）。
-- **paper2 特有闸门（D-10）**：`task-origin-data-separation` 需在 Origin 中打开 `.opju` 判含/不含 KWBPU——agent 读不了专有二进制，属人工闸门。
+- **专有二进制闸门（D-10；例证来自真实项目 paper2）**：`task-origin-data-separation` 需在 Origin 中打开 `.opju` 判含/不含 KWBPU——agent 读不了专有二进制，属人工闸门。
 
 ## 能力注册表（可用性以磁盘为准）
 

@@ -79,7 +79,7 @@
 - **补登声明**：先切回 main 做 amend，再 `git show main:.orchd/_master.json` 写回任务分支提交；任务分支 amend 被 E007 拒、`orchd git merge main` 实机不放行（E-08 未修复）。
 - **路径形态**：E010 守卫按 **git 引号+八进制转义**形态比对；取路径一律 `git -z`，禁止 `.split()`。
 - **替换幂等**：前缀替换必须带负向后顾；自检必须覆盖**文件内部的值级路径**（本轮 42 条 `local_pdf` 曾被累积前缀 8 层）。
-- 细则见 `references/00-project-layout.md §6`。
+- 细则见本文件 **D-18** 沿革条目（迁移细则原文已自 layout 文档归档于此）。
 
 ## D-6 文件组织与命名 = 阶段号前缀 + 产物/临时物/原始件三分（2026-09-24，用户提出）
 
@@ -204,3 +204,34 @@
 - **锚点漂移更正**：D-16 记 N-4 先拒后写点在 `30-gen-proposals.py:490-493`，本轮实测该 `die` 在 **`:631-634`**（490 一带现为模板展开代码）。以 D-13 表 N-4 行为准；D-16 那条按"行号为当时 grep 实测"保留原文不改写。
 - **刻意未做（有主，不扩权）**：① `SKILL.md` 能力注册表状态位（`:158` 等）→ `task-capability-registry-flip`；② `README.md:139-140` 写死数字与 78 号并列口径 → `task-capability-registry-resync`；③ `.orchd/_master.json` 内 4 个后加任务无 `source`（无 CLI 通道，见 D-16 附带实测）；④ `references/50-orchd-runbook.md:132` 引的"D-13/D-15"——归位后"D-13"命中档位顺序与本节台账、"D-15"命中入 git + 本机档案口径，两条引用都仍可解析，故不改；本任务 `files_to_edit` 亦不含该文件（任务分支不可 `amend`，红线 8）。⑤ `README.md:97-100` §目录结构 的 `scripts/` 清单未列 `76-doc-refs-selftest.py`（本任务新建）与 `78-assertions-selftest.py`，`:139` 的"必跑"口径同缺 → 归 `task-capability-registry-resync`（AC6 正是"README 并列多条测试命令、按原文逐条可跑 rc=0"），本任务 `files_to_edit` 不含 README，不扩权。
 - **守卫的靶子**：本文件 §遗留 表若被删行/改号，或 `00-DECISIONS.md` 引用复发到 `references/00-project-layout.md`，`python -X utf8 scripts/76-doc-refs-selftest.py` 必须 rc=1（模板见 `references/50-orchd-runbook.md` §反向控制）。
+
+## D-18 发布面叙事分层与 paper1 迁移史归档（2026-09-28，task-layout-doc-descoping）
+
+- **决策（三层原则）**：技能发布面上，**规范位必须通用、例证必须显式框定（"例证/出处项目（paper1）"句式）、项目史只住本文件**。动因：本 skill 是通用 agent 技能，不得让读者把某一论文项目的运维史误读为普适规范。范围：`references/00-project-layout.md` 原第 5/6 节整体移入本条目；`references/40-draft-to-latex.md` 三处冻结名注改"命名两制"通用表述并指回本条目；`SKILL.md` 的 paper1/paper2 提及全部框定并澄清 `scripts/verify.py` 不在本 skill 发货面（该文件在 paper1 项目内，两制机制——22 条历史 verify_command 冻结——语义不变）。
+- **连带修正（在 files_to_edit 声明内）**：`references/40-draft-to-latex.md` 跨出版社一节的 `static/publisher/<name>.md` 子目录旧口径按 60-capability-specs §3.1 的取代关系改为平铺碎片 + `fragments:` 声明注入（static/ 已建成）。
+- **原文归档（原 `references/00-project-layout.md` 第 5 节，逐字保留）**：
+
+  > ## 5. paper1 迁移方案（**不在飞行中重排**）
+  >
+  > **原则**：paper1 仍有 2 个 pending 任务（`task-finalize-manuscript`、`task-latex-build`），其声明路径指向现有位置（`manuscript/paper_final.md`、`latex/**`）。**现在重排会让声明路径失效**，因此分两步：
+  >
+  > **第 1 步（现在可做，零风险）**——只清理**未被任何声明引用**的死代码与临时物：`scripts/batch_download_*.py`（8 个变体）、`scripts/_*.py`（10 个一次性）、`scripts/_ch4_body.txt`、`scripts/_debug_refs*.py` → `scripts/79-archive/`（若确认无用）或 `scripts/78-scratch/`；`lit/_refs_raw.txt`、`lit/batch_download.html`、`lit/browser_download_links.md`、`lit/candidates.json` → `lit/scratch/`；`working/plot_data_figures.py`（脚本混在文档目录）→ 与图件脚本同处，留 shim 或更新引用；`docs/`（引擎 system-design.md）与 `documents/`（项目 plan.md、engine-issues）→ 在 `docs/README.md` 标注"引擎件，非项目文档"。
+  >
+  > **第 2 步（`task-latex-build` completed 之后，用一个专门的 migration 任务）**——整体改为编号布局：`documents/plan.md`→`00-admin/00-plan.md`；`manuscript/{meta.json,skeleton.md,abstract.md}`→`00-admin/01-meta.json`、`02-skeleton.md`、`30-manuscript/30-abstract.md`；`working/{data_audit,data_analysis}.md`→`10-data/{10-audit,11-analysis}.md`；`working/figure_specs.md`→`40-figures/40-figure-specs.md`；`working/{table1_basic,table2_aging_corrosion}.md`→`30-manuscript/tables/` 或 `10-data/`（择一登记映射）；`working/{open_items_for_author,open_questions_resolved}.md`→`50-review/52-open-items-for-author.md`、`00-admin/09-decisions.md`（追加）；`lit/{verified_refs,candidates}.json` 等 9 个→`20-lit/{22-refs,21-candidates}.json` + `scratch/`；`manuscript/{paper_draft,references,review_report}.md`→`30-manuscript/{36-draft,37-references}.md`、`50-review/50-review-report.md`；`scripts/{verify.py,verify_manifest.json}` + 生产脚本→`70-tools/{70-verify.py,71-verify-manifest.json,72-*.py}`；`figures/{data,schematic,sem_tem,extracted,composite}`→`40-figures/{data,schematic,raster,extracted,composite}`；`latex/**`→`60-latex/**`；`notebooks/**`→`90-notebooks/**`。
+  >
+  > **迁移任务的硬要求**：① 用 `git mv` 保历史；② 同步更新所有引用（manifest 内全部 path、脚本内常量、md 内相对链接）；③ amend 更新 pending/新任务的声明路径；④ 迁移后跑全部任务的 verify 与一次全量一致性检查；⑤ 迁移单独成任务、单独审查，不与内容改动混在一条提交里。
+
+- **原文归档（原第 6 节，逐字保留）**：
+
+  > ## 6. 实施实证（paper1 迁移，2026-09-24，务必遵守）
+  >
+  > **paper1 的最终形态两处例外**（其余全部按编号规范）：**`scripts/` 保留目录名**（不叫 `70-tools/`）：22 条历史任务的 `verify_command` = `python scripts/verify.py task-<id>`，而**终态任务不可改执行字段**，改名即永久失去"历史任务 verify 可重跑"这一回归能力；`verify.py` / `verify_manifest.json` 两个契约文件名同样冻结，其余脚本编号化。**`docs/` 不动**（引擎 vendor 的 system-design），项目文档一律进 `00-admin/`。
+  >
+  > **引擎约束（迁移中实测，违反会卡住）**：① 注册期禁目录式声明（E003），`exempt_files` 同样拒绝；而钩子只对以 `/` 结尾的声明做前缀匹配（`gitops/hook.py:632`）⇒ 两者语法互斥，"批量路径变更"无法在声明域内表达，批量迁移只能**最小声明 + 单次 `--no-verify`**（须用户授权并在提交信息/交付说明/审查意见三处披露）。② amend 只在 main（E007 红线 7）；flat 布局下补登声明必须先切回 main，再用 `git show main:.orchd/_master.json` 取内容写回任务分支并提交（固定资产豁免）；`proxy.py` 文档承诺的"task 分支 merge main 放行"实测**不生效**。③ E010 守卫比对的是 git 的"引号 + 八进制转义"路径形态，不是原始 UTF-8；路径含非 ASCII 或空格时声明须按该形态补登；工具链一律用 `git … -z` 取路径（绝不要 `.split()`）。④ claimed 任务禁 `--remove-files-to-edit`、completed 任务禁改执行字段 ⇒ 被污染的声明无自愈通道；补登前务必确认路径正确，宁可分批。⑤ 声明路径数量可达数百条（schema 无 maxItems），E029 只是告警；每条都必须与实际变更逐一对应，否则 done 反复被 E010 拦（本轮共 6 轮补登才收敛）。
+  >
+  > **路径替换的两个硬规则（血的教训）**：**幂等**——前缀替换必须带负向后顾（如 `(?<!20-)lit/`），否则 `("lit/" → "20-lit/")` 会把刚生成的新前缀再前缀一次（本轮因此把 42 条 `local_pdf` 值累积成 8 层前缀，需全库折叠修复）；**值级自检**——迁移自检不仅要查"文件路径是否残留旧前缀"，还要查**文件内部的值**（库字段、清单、md 提及），只查前者会漏掉最隐蔽的损坏。
+  >
+  > **迁移任务的最小自检集（verify_command 必须覆盖）**：旧目录无残留文件 → 全部声明路径存在 → 契约文件保号 → **全量历史任务 verify 逐个 PASS**（pending 任务因产物未生成而 FAIL 属预期）→ 引擎/宿主目录（`.orchd/ docs/ .workbuddy/`）零改动。
+
+- **`00-DECISIONS.md` 禁令保持**：本条目与 layout 改写均未引入该已消失档案的引用（76 号 HARD_ZERO 守卫继续有效）。
+
