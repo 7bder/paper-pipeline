@@ -746,6 +746,271 @@
         "profiles/20-social-science.yaml"
       ],
       "verify_command": "python -X utf8 scripts/30-gen-proposals.py --profile profiles/20-social-science.yaml --out build/socsci"
+    },
+    {
+      "id": "task-readme-generalize",
+      "name": "README 泛化重写（去项目叙事）",
+      "brief": "README.md 从 paper1 血泪史叙事改为通用技能入口叙事：项目名仅存于显式框定的例证句式（出处/示例标注）；目录结构补全 profiles 全部 6 档与 static/；清过期写死数字；发布边界改指 MANIFEST.in 单一真源并给 install.py 用法行（清单与安装器由后续任务落地）。来源：2026-09-28 会话用户确认的 6 任务方案之一。",
+      "module": "mod-release-hygiene",
+      "depends_on": [],
+      "estimated_hours": 2.0,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "grep -niE 'paper ?[12N]' README.md 的每一处命中均处于显式例证框定内（出处/示例标注），无框定的项目叙事为 0；KH-550 使用示例段首行带『示例（真实项目改编）』类标注",
+        "目录结构一节列出 profiles 全部 6 个 yaml（00 基类 + 10-clinical / 10-materials-chemistry / 10-wbpu-kh550 / 20-social-science / 30-cs-ml）以及 static/ 与 scripts/70/75/76/78",
+        "过期写死数字清零：D-x 计数与 CHANGELOG 实况一致或改不绑定表述；『21 个真实 proposal』『24/26 任务』类数字删除或与磁盘实测一致",
+        "发布边界一节声明『发布面以 MANIFEST.in 为单一真源』并给出 install.py skill/project 两种模式的用法行（CLI 形态与 2026-09-28 会话确认一致）",
+        "python -X utf8 scripts/76-doc-refs-selftest.py 退出码 0（README 在发布面扫描内，G1–G5 全绿）"
+      ],
+      "files_to_read": [
+        {
+          "path": "README.md",
+          "priority": "must_read",
+          "hint": "改写对象，全文在库"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "reference",
+          "hint": "D-x 计数与决策出处对齐"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "reference",
+          "hint": "能力注册表/ profiles 现状对齐"
+        }
+      ],
+      "files_to_edit": [
+        "README.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
+      "source": "debug:manual"
+    },
+    {
+      "id": "task-layout-doc-descoping",
+      "name": "layout 文档降范围（paper1 迁移史移出发货面）",
+      "brief": "references/00-project-layout.md 的 §5 paper1 迁移方案与 §6 实施实证整体移入 CHANGELOG 沿革条目，layout 只留通用规范；references/40-draft-to-latex.md 的 layout §6 引用与三处 paper1 冻结名注同步为『命名两制』通用表述（两制机制语义不变）；SKILL.md 的 paper1/paper2 框定为例证句式并澄清 scripts/verify.py 不在本 skill 发货面；决策落 CHANGELOG（原文可追溯，不丢史）。",
+      "module": "mod-release-hygiene",
+      "depends_on": [],
+      "estimated_hours": 3.0,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "references/00-project-layout.md 不再含 'paper1' 字样（grep = 0）；原 §5/§6 内容完整保留在 CHANGELOG 新条目中，逐节可回指不丢史",
+        "references/40-draft-to-latex.md 无指向 layout §6 的悬空引用；'paper1 冻结'类注改为『命名两制』通用表述，两制机制（22 条历史 verify_command 冻结）语义不变",
+        "SKILL.md 中 paper1/paper2 仅存于显式框定句式；命名两制表述处补『scripts/verify.py 在 paper1 项目内、本 skill 发货面无此文件』澄清",
+        "CHANGELOG 新增条目记录『发布面叙事分层』决策（规范位通用 / 例证显式框定 / 项目史归 CHANGELOG），含本次迁移内容与原始出处",
+        "python -X utf8 scripts/76-doc-refs-selftest.py 与 scripts/75-verify-selftest.py 均退出码 0（SKILL.md 改动不碰守卫语义）"
+      ],
+      "files_to_read": [
+        {
+          "path": "references/00-project-layout.md",
+          "priority": "must_read",
+          "hint": "§5/§6 为迁出对象，§1–4 通用规范保留"
+        },
+        {
+          "path": "references/40-draft-to-latex.md",
+          "priority": "must_read",
+          "hint": "3 处冻结名注与 §6 引用位置"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "must_read",
+          "hint": "沿革条目落点与编号续位"
+        },
+        {
+          "path": "scripts/76-doc-refs-selftest.py",
+          "priority": "reference",
+          "hint": "ABSENT_OK_MARKS 语镜与 G1 死链判定，改文档前先懂守卫"
+        }
+      ],
+      "files_to_edit": [
+        "references/00-project-layout.md",
+        "references/40-draft-to-latex.md",
+        "SKILL.md",
+        "CHANGELOG.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
+      "source": "debug:manual"
+    },
+    {
+      "id": "task-static-provenance-reframe",
+      "name": "static 碎片出处泛化",
+      "brief": "static/ 三碎片（elsevier-numbered / md-single-source / lab-experimental-reporting）的『来源：paper1 定稿』框架改为无项目名的真实来源表述，paper1 专属数字（49/49、[1] [5] [7] 归属、85 字符出处注等）改通用示例或规则化表述，规则内容零语义变化；references/60-capability-specs.md §3.4 同步——去掉项目点名，保留『内容须来自真实定稿、不得写教科书式通用常识』的防杜撰约束。",
+      "module": "mod-release-hygiene",
+      "depends_on": [],
+      "estimated_hours": 1.5,
+      "difficulty": "low",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "grep -rn 'paper1' static/ 命中 0；三碎片头部出处改为『经真实 Elsevier 定稿逐条验证』类无项目名表述",
+        "碎片内 paper1 专属数字改通用示例或规则化表述；每条规则的语义与改前逐条一致（逐条对照结论写在 CHANGELOG 新条目）",
+        "references/60-capability-specs.md §3.4 不再点名 paper1，防杜撰约束（真实来源、禁教科书常识）语义保留",
+        "python -X utf8 scripts/75-verify-selftest.py 与 78-assertions-selftest.py 均退出码 0；static/ 尚不在守卫扫描面——该缺口由 task-release-manifest 把 static/ 纳入 76 扫描后闭环（拆解期已登记，非默认有人管）"
+      ],
+      "files_to_read": [
+        {
+          "path": "static/",
+          "priority": "must_read",
+          "hint": "三碎片全文与 manifest.yaml"
+        },
+        {
+          "path": "references/60-capability-specs.md",
+          "priority": "must_read",
+          "hint": "§3.4 碎片内容要求（同步对象）"
+        }
+      ],
+      "files_to_edit": [
+        "static/elsevier-numbered.md",
+        "static/md-single-source.md",
+        "static/lab-experimental-reporting.md",
+        "references/60-capability-specs.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
+      "source": "debug:manual"
+    },
+    {
+      "id": "task-release-manifest",
+      "name": "发布清单 MANIFEST + VERSION + 76 纯净/清单守卫",
+      "brief": "落地 MANIFEST.in 纯白名单发布清单与 VERSION（git describe 形态）；scripts/76 新增 MANIFEST 完整性守卫与 G6 执行目录纯净守卫（各带反向对照），并把 static/ 纳入扫描面；docs/system-design.md（引擎件 stub，skill 文档零引用）出仓并在 CHANGELOG 留沿革。",
+      "module": "mod-release-hygiene",
+      "depends_on": [
+        "task-readme-generalize",
+        "task-layout-doc-descoping",
+        "task-static-provenance-reframe"
+      ],
+      "estimated_hours": 3.0,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "MANIFEST.in 为纯白名单：清单内路径全部在盘；profiles/scripts/assets/references/static 各发布目录的盘面文件 100% 被清单覆盖；scripts/76 不在清单、75/78 在",
+        "76 新增 MANIFEST 完整性守卫：清单列出不在盘的路径→rc=1；发布目录盘面文件未被清单覆盖→rc=1；反向对照进自测（内存变异清单，不落盘）",
+        "76 新增 G6 执行目录纯净守卫：仓根出现 00-admin/10-data/20-lit/30-manuscript/40-figures/50-review/60-latex/90-notebooks/manuscript/lit/figures 任一即 rc=1，反向对照进自测（目录名探测，不真建目录）",
+        "static/ 全部文件纳入 76 扫描面（闭合 task-static-provenance-reframe 登记的守卫缺口）",
+        "VERSION 在盘且为 vX.Y.Z[-N-g<sha>] 形态字符串；docs/system-design.md 出仓且 CHANGELOG 留沿革（可重建来源指向 orchd-core）",
+        "python -X utf8 scripts/75-verify-selftest.py、76-doc-refs-selftest.py、78-assertions-selftest.py 三者退出码 0"
+      ],
+      "files_to_read": [
+        {
+          "path": "scripts/76-doc-refs-selftest.py",
+          "priority": "must_read",
+          "hint": "守卫结构与新 G 段插入点"
+        },
+        {
+          "path": ".gitignore",
+          "priority": "reference",
+          "hint": "开发层排除项现状"
+        },
+        {
+          "path": ".orchd/MANIFEST.in",
+          "priority": "reference",
+          "hint": "orchd 同名契约的形态参照"
+        }
+      ],
+      "files_to_edit": [
+        "MANIFEST.in",
+        "VERSION",
+        "scripts/76-doc-refs-selftest.py",
+        "CHANGELOG.md",
+        "docs/system-design.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
+      "source": "debug:manual"
+    },
+    {
+      "id": "task-installer",
+      "name": "install.py 安装器（skill/project 双模式 + 自测）",
+      "brief": "仓根新增 install.py（仅标准库）：按 MANIFEST.in 白名单装配发布面到目标端并写 VERSION/PROVENANCE；支持 --mode skill|project、--cleanup、--selftest（临时目录装配 + 清单断言 + 生成/判据冒烟）；MANIFEST 补 include install.py；76 增安装器自测用例进回归链。",
+      "module": "mod-release-hygiene",
+      "depends_on": [
+        "task-release-manifest"
+      ],
+      "estimated_hours": 3.5,
+      "difficulty": "high",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "install.py 仅用标准库，--selftest 退出码 0：临时目录按清单装配→清单逐项在盘、开发层（.orchd/build/reports/docs/CHANGELOG 等）缺席断言→副本内 30-gen-proposals.py 对任一发布 profile 生成 rc=0→70-verify.py --schema 冒烟，临时物用毕即删",
+        "skill 模式：装配副本内 75-verify-selftest.py rc=0（发布面自洽证明）；PROVENANCE 含源 commit、工作副本脏态与安装模式",
+        "project 模式：70-verify.py 落 <target>/70-tools/70-verify.py 且副本 --schema 可跑；目标未装 orchd 时仅输出提示不代装",
+        "--cleanup 仅在安装成功后删源；同一目标重复安装幂等（第二次 rc=0 且清单覆盖完整）",
+        "MANIFEST.in 增 include install.py；76 增『python -X utf8 install.py --selftest 退出码 0』用例进回归链",
+        "python -X utf8 scripts/75-verify-selftest.py、76-doc-refs-selftest.py、78-assertions-selftest.py 三者退出码 0"
+      ],
+      "files_to_read": [
+        {
+          "path": "MANIFEST.in",
+          "priority": "must_read",
+          "hint": "装配清单真源"
+        },
+        {
+          "path": "scripts/30-gen-proposals.py",
+          "priority": "reference",
+          "hint": "冒烟调用形态与 --out 语义"
+        },
+        {
+          "path": "scripts/76-doc-refs-selftest.py",
+          "priority": "reference",
+          "hint": "用例插入点"
+        }
+      ],
+      "files_to_edit": [
+        "install.py",
+        "MANIFEST.in",
+        "scripts/76-doc-refs-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 install.py --selftest",
+      "source": "debug:manual"
+    },
+    {
+      "id": "task-selftest-fixture-decouple",
+      "name": "75 号 wbpu 夹具动态化",
+      "brief": "scripts/75-verify-selftest.py 的 CLI 守卫夹具从硬编码 10-wbpu-kh550.yaml 改为运行时动态选取：优先 extends 非空的领域档（保住子档继承测试语义），退化任一非 00- 档，全缺显式 SKIP 不静默 PASS；选取逻辑带套件内反向对照（临时合成 profiles 目录）。76 已明确不入发布面，不做环境适配。",
+      "module": "mod-release-hygiene",
+      "depends_on": [],
+      "estimated_hours": 1.5,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "grep '10-wbpu-kh550' scripts/75-verify-selftest.py 命中 0；夹具为运行时动态选取：优先 extends 非空领域档，退化任一非 00- 档，全缺时显式 SKIP 且不判 PASS",
+        "选取函数带套件内反向对照：临时合成 profiles 目录（仅基类→SKIP 语义生效；基类+子档→选中子档），不落盘真文件",
+        "动态化前后守卫面等价：既有用例全部保留且 python -X utf8 scripts/75-verify-selftest.py 退出码 0",
+        "python -X utf8 scripts/78-assertions-selftest.py 退出码 0"
+      ],
+      "files_to_read": [
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "must_read",
+          "hint": "wbpu 夹具的 7 处引用与守卫语义"
+        },
+        {
+          "path": "scripts/78-assertions-selftest.py",
+          "priority": "reference",
+          "hint": "domain_profiles() 的同类动态选取先例"
+        }
+      ],
+      "files_to_edit": [
+        "scripts/75-verify-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/75-verify-selftest.py",
+      "source": "debug:manual"
     }
   ]
 }
