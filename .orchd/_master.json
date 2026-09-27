@@ -919,11 +919,12 @@
         }
       ],
       "files_to_edit": [
+        "CHANGELOG.md",
         "MANIFEST.in",
         "VERSION",
+        "docs/system-design.md",
         "scripts/76-doc-refs-selftest.py",
-        "CHANGELOG.md",
-        "docs/system-design.md"
+        "static/elsevier-numbered.md"
       ],
       "exempt_files": [],
       "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
