@@ -1272,6 +1272,57 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/75-verify-selftest.py",
       "source": "idea:base-profile-standalone-diagnosis"
+    },
+    {
+      "id": "task-verify-timeout-budget-crossref",
+      "name": "verify 超时三层预算口径互引",
+      "brief": "verify_command 受引擎 _VERIFY_TIMEOUT=120s 硬上限（例外通道 amend --verify-timeout-seconds 上界 600s，见 .orchd/rules/verify.md），而 scripts/70-verify.py 的 run 断言超时 RUN_TIMEOUT=300s；任务配 120-300s 的 run 命令时默认预算下引擎先 E014，基座 300s 承诺不可达，两层文档无互相提示。本任务在 70-verify.py --schema 文案（SCHEMA_HELP 源于 __doc__ 切片）与 SKILL.md 判据基座节补互引口径，并在 76 号加互引存在性守卫。出处：reports/00-REVIEW-2026-09-29.md §2 F-7。",
+      "module": "mod-judgment",
+      "depends_on": [
+        "task-verify-require-keys-non-dict-guard",
+        "task-readme-drift-state-guards"
+      ],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "python -X utf8 -B scripts/70-verify.py --schema 的输出必须同时含「120s」与「600s」字样，并说明 run 断言实际预算受引擎 verify_command 超时约束（默认 120s、例外通道 600s）",
+        "SKILL.md §判据基座 必须含同口径说明句（含 120s 与 600s 字样）",
+        "scripts/76-doc-refs-selftest.py 新增互引存在性守卫：SKILL.md 判据基座节与 scripts/70-verify.py 文档面必须含上述口径字样，缺失即红；配反向对照（字样摘除守卫必红）",
+        "python -X utf8 -B scripts/76-doc-refs-selftest.py 全绿"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-7：三层预算关系"
+        },
+        {
+          "path": ".orchd/rules/verify.md",
+          "priority": "must_read",
+          "hint": "120s 硬上限与 --verify-timeout-seconds 例外通道的权威口径（:13-14）"
+        },
+        {
+          "path": "scripts/70-verify.py",
+          "priority": "must_read",
+          "hint": "RUN_TIMEOUT :105 与 SCHEMA_HELP :376 的 docstring 切片机制"
+        },
+        {
+          "path": "SKILL.md",
+          "priority": "must_read",
+          "hint": "§判据基座（scripts/70-verify.py 一节）的插入位置"
+        }
+      ],
+      "files_to_edit": [
+        "scripts/70-verify.py",
+        "SKILL.md",
+        "scripts/76-doc-refs-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
+      "source": "idea:verify-timeout-budget-crossref"
     }
   ]
 }
