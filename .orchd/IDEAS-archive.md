@@ -25,3 +25,9 @@
 - 论证: 出处同报告 §2 F-5。README:126-133「§与 orchd 的接法（唯一正确姿势）」五步第 1 步直接跑生成器、第 4 步说判据脚本经 verify_command 调用，但不含 install.py --mode project（把 70-verify.py/71-verify-manifest.json vendor 进论文项目）；该模式只写在 :157-158「§安装与发布边界」，两节互不引用。2026-09-29 审查对 5 档 profile 跑 --check 时引擎 E037 警告（verify_command 引用路径既未声明也不存在）正是此缺口的引擎侧信号。修法：接法第 1 步后插入 project 模式安装（或生成器 emit 后提示安装命令），两节互加引用；76 号可加「接法节须含 install.py --mode project 字样」守卫。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
+## 2026-09-29 README 尾部 7 处状态过时（D 区间/待建注记/已出仓目录），G1 抓不到需状态性守卫（id: readme-drift-state-guards）
+- status: pending
+- id: readme-drift-state-guards
+- 论证: 出处同报告 §2 F-6。README:29/:101/:189 写「D-1…D-17」（CHANGELOG 已到 D-20）、:179「17 条设计决策」、:151「待建：task-release-manifest」与 :152「待建：归 task-installer」（两者均已落地：MANIFEST.in+G6/G7 守卫在盘、install.py 在盘且 --selftest 全绿）、:162「docs/ 待出仓」（D-19 已出仓，仓根无该目录）。76 号 G1 只查死引用，区间过时与状态过时全部漏网。修法：逐处更正外，给 76 号新增状态性守卫——README 提及的 D 区间上界 ≥ CHANGELOG 实际最大 D 编号、「待建：task-xxx」字样要求对应任务不在 _master.json completed 集，各配反向对照。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+

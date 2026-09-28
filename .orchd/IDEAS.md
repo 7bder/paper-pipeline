@@ -57,12 +57,6 @@
 - 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
-## 2026-09-29 README 尾部 7 处状态过时（D 区间/待建注记/已出仓目录），G1 抓不到需状态性守卫（id: readme-drift-state-guards）
-- status: pending
-- id: readme-drift-state-guards
-- 论证: 出处同报告 §2 F-6。README:29/:101/:189 写「D-1…D-17」（CHANGELOG 已到 D-20）、:179「17 条设计决策」、:151「待建：task-release-manifest」与 :152「待建：归 task-installer」（两者均已落地：MANIFEST.in+G6/G7 守卫在盘、install.py 在盘且 --selftest 全绿）、:162「docs/ 待出仓」（D-19 已出仓，仓根无该目录）。76 号 G1 只查死引用，区间过时与状态过时全部漏网。修法：逐处更正外，给 76 号新增状态性守卫——README 提及的 D 区间上界 ≥ CHANGELOG 实际最大 D 编号、「待建：task-xxx」字样要求对应任务不在 _master.json completed 集，各配反向对照。
-- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
-
 ## 2026-09-29 基类 profile 单独生成必炸且报错不定位，需显式声明 extends 模板语义（id: base-profile-standalone-diagnosis）
 - status: pending
 - id: base-profile-standalone-diagnosis
