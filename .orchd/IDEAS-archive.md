@@ -19,3 +19,9 @@
 - 论证: 出处同报告 §2 F-3。scripts/75-verify-selftest.py:382-383 的「给了 --project 不被新守卫拦下」拿不存在的 base/noparam 当 project（注释自述不要求 rc=0），check() 的正路（生成→引擎 validate）在自测从未执行；引擎 09-25 升 v1.5.0-1 后 master fragment 与引擎 schema 的兼容性无自动回归（最近人工验证停留在 CHANGELOG D-8/D-11）。当日补测 5 档全部 valid:true errors=0（材料 24/wbpu 26/clinical 22/社科 22/cs-ml 24），契约当下成立但回归网有洞。修法：自测内建合成 .orchd 项目（vendor 本仓引擎或最小桩），让 --check 跑通真实 validate 并断言 valid 字段；沙盒用系统临时目录，维持 check() 对目标项目零写入。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
+## 2026-09-29 README 唯一正确姿势缺判据基座装配步骤，照走首个 done 必撞 E014/E037（id: readme-pipeline-install-step）
+- status: pending
+- id: readme-pipeline-install-step
+- 论证: 出处同报告 §2 F-5。README:126-133「§与 orchd 的接法（唯一正确姿势）」五步第 1 步直接跑生成器、第 4 步说判据脚本经 verify_command 调用，但不含 install.py --mode project（把 70-verify.py/71-verify-manifest.json vendor 进论文项目）；该模式只写在 :157-158「§安装与发布边界」，两节互不引用。2026-09-29 审查对 5 档 profile 跑 --check 时引擎 E037 警告（verify_command 引用路径既未声明也不存在）正是此缺口的引擎侧信号。修法：接法第 1 步后插入 project 模式安装（或生成器 emit 后提示安装命令），两节互加引用；76 号可加「接法节须含 install.py --mode project 字样」守卫。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+

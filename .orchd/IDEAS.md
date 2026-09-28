@@ -57,12 +57,6 @@
 - 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
-## 2026-09-29 README 唯一正确姿势缺判据基座装配步骤，照走首个 done 必撞 E014/E037（id: readme-pipeline-install-step）
-- status: pending
-- id: readme-pipeline-install-step
-- 论证: 出处同报告 §2 F-5。README:126-133「§与 orchd 的接法（唯一正确姿势）」五步第 1 步直接跑生成器、第 4 步说判据脚本经 verify_command 调用，但不含 install.py --mode project（把 70-verify.py/71-verify-manifest.json vendor 进论文项目）；该模式只写在 :157-158「§安装与发布边界」，两节互不引用。2026-09-29 审查对 5 档 profile 跑 --check 时引擎 E037 警告（verify_command 引用路径既未声明也不存在）正是此缺口的引擎侧信号。修法：接法第 1 步后插入 project 模式安装（或生成器 emit 后提示安装命令），两节互加引用；76 号可加「接法节须含 install.py --mode project 字样」守卫。
-- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
-
 ## 2026-09-29 README 尾部 7 处状态过时（D 区间/待建注记/已出仓目录），G1 抓不到需状态性守卫（id: readme-drift-state-guards）
 - status: pending
 - id: readme-drift-state-guards
