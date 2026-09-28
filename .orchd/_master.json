@@ -1058,6 +1058,49 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
       "source": "idea:orchd-flat-claim-deadlock"
+    },
+    {
+      "id": "task-verify-require-keys-non-dict-guard",
+      "name": "70-verify require_keys 非 dict 首元素防御与双向守卫",
+      "brief": "修复 scripts/70-verify.py check_json 的 require_keys 分支（:197-199）对产物 JSON 首元素非 dict 的两种错误判定：标量首元素 TypeError 裸 traceback 致 rc=1 冒充 FAIL（N-2 家族复发）；字符串首元素走 str 子串语义致 rc=0 假 PASS（N-3 同族 fail-open）。姊妹分支 require_keys_all（:200-204）已有 isinstance 防御，本任务对齐之，并在 scripts/75-verify-selftest.py 补红绿双向守卫。出处：reports/00-REVIEW-2026-09-29.md §2 F-2（沙盒实锤）。",
+      "module": "mod-judgment",
+      "depends_on": [],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "产物 JSON 首元素为标量（如 [1, 2, 3]）且条目配 require_keys 时，70-verify.py 必须判 FAIL（rc=1）且错误消息含首元素实际类型名，全程无 TypeError traceback",
+        "产物 JSON 首元素为字符串且条目配 require_keys 时必须判 FAIL（rc=1），不得以子串语义 rc=0 放行",
+        "对照组不回退：对象列表缺键仍 rc=1、对象列表含全部要求键仍 rc=0",
+        "scripts/75-verify-selftest.py 新增守卫必须覆盖上述两个错误场景，且带反向对照（防御逻辑摘除后守卫必红）",
+        "python -X utf8 -B scripts/75-verify-selftest.py 全量 PASS（退出码 0）"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-2：两个沙盒实锤场景与自测盲区成因"
+        },
+        {
+          "path": "scripts/70-verify.py",
+          "priority": "must_read",
+          "hint": "check_json :162-205（require_keys :197-199 与 require_keys_all :200-204 对照）、shape_problems :314-357"
+        },
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "must_read",
+          "hint": "manifest 形态守卫段（N-2/N-3）的现有守卫与反向对照写法"
+        }
+      ],
+      "files_to_edit": [
+        "scripts/70-verify.py",
+        "scripts/75-verify-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/75-verify-selftest.py",
+      "source": "idea:verify-require-keys-non-dict-guard"
     }
   ]
 }
