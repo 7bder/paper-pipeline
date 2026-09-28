@@ -1323,6 +1323,51 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
       "source": "idea:verify-timeout-budget-crossref"
+    },
+    {
+      "id": "task-version-tag-freshness",
+      "name": "VERSION 口径改纯语义版本并加 G7 新鲜度弱校验",
+      "brief": "VERSION=v0.1.0-0-g60c0cd0，但仓库无任何 tag（git describe --tags fatal）且 HEAD 领先该提交 10 个提交——D-19 定义的 git describe 口径当前不可复现（-0-g 形态要求 HEAD 恰在 tag 上）；76 号 G7 只验形态不验新鲜度。本任务把 VERSION 改为纯语义版本 v0.2.0（本轮 7 项修复完成后 minor bump），G7 加弱校验（git describe 成功时其输出必须等于 VERSION 内容、无 tag 时不拦），CHANGELOG 追加 D-21 记录口径变更。tag 的 git 写操作不在本任务范围（须用户另行授权）。出处：reports/00-REVIEW-2026-09-29.md §2 F-1。",
+      "module": "mod-release-hygiene",
+      "depends_on": [
+        "task-readme-drift-state-guards"
+      ],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "VERSION 文件内容必须为 v0.2.0（纯语义版本，G7 形态校验通过）",
+        "scripts/76-doc-refs-selftest.py 的 G7 必须新增弱校验：git describe --tags 成功时其输出与 VERSION 内容不一致即 FAIL；仓库无 tag 时校验放行；该分支逻辑必须在 76 号 --selftest 内有合成用例证明「不一致必红」",
+        "CHANGELOG.md 必须追加 D-21（或下一个未占用编号）：记录 git describe 口径废止、纯语义版本决策、仓库无 tag 的事实与理由",
+        "python -X utf8 -B scripts/76-doc-refs-selftest.py 全绿（含新增弱校验）"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-1：VERSION 不可复现的证据"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "must_read",
+          "hint": "D-19 对 VERSION 口径的定义（被本任务废止）与 D 编号占用现状"
+        },
+        {
+          "path": "scripts/76-doc-refs-selftest.py",
+          "priority": "must_read",
+          "hint": "G7 现有形态校验与 --selftest 合成用例写法"
+        }
+      ],
+      "files_to_edit": [
+        "VERSION",
+        "scripts/76-doc-refs-selftest.py",
+        "CHANGELOG.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
+      "source": "idea:version-tag-freshness"
     }
   ]
 }
