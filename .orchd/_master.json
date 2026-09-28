@@ -1012,6 +1012,52 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 scripts/75-verify-selftest.py",
       "source": "debug:manual"
+    },
+    {
+      "id": "task-orchd-flat-deadlock-upstream-issue",
+      "name": "orchd flat 布局滞留缝隙的上游 issue 固化",
+      "brief": "把 orchd-flat-claim-deadlock 登记的引擎缝隙（retract 不切回 default 分支、无受管回 main 通道、claim/amend 的 main 前置与 flat 布局降级口径不自洽）固化为 CHANGELOG D-20：含实测复现、根因 file:line、影响面、绕行闭环与上游 orchd-core 修复建议；本仓不改引擎本体（vendored，§6 发布边界）。",
+      "module": "mod-release-hygiene",
+      "depends_on": [],
+      "estimated_hours": 2.0,
+      "difficulty": "low",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "CHANGELOG.md 新增唯一二级编号 ## D-20（不与既有 D-1…D-19 重复，76 号 G5 编号唯一守卫通过）",
+        "D-20 逐条记录三处引擎缝隙：retract 不切回 default 分支（.orchd/orchd/onboard/control.py 的 retract 无 checkout）；无受管回 main 通道且 orchd git 代理拒绝 checkout（.orchd/orchd/cli/commands/misc.py 的 _cmd_git）；claim/amend 的 main 前置与 flat 下 E030 全降级 not_applicable 口径不一致（.orchd/orchd/onboard/claim.py 与 .orchd/orchd/cli/commands/control.py）",
+        "D-20 记录本次真实滞留的复现与绕行闭环（E018 滞留任务分支 → force-status 重认领 → amend 受管往返）并给出两条上游修复建议：claim 对已存在且未合并的 task 分支直接续作；retract 或独立命令提供受管回 default 通道",
+        "python -X utf8 scripts/76-doc-refs-selftest.py 退出码 0"
+      ],
+      "files_to_read": [
+        {
+          "path": ".orchd/IDEAS.md",
+          "priority": "must_read",
+          "hint": "orchd-flat-claim-deadlock 原始论证与登记口径"
+        },
+        {
+          "path": ".orchd/orchd/onboard/control.py",
+          "priority": "must_read",
+          "hint": "retract 实现（无切回 default）与 amend 分支守卫位点"
+        },
+        {
+          "path": ".orchd/orchd/gitops/guard.py",
+          "priority": "reference",
+          "hint": "managed_checkout_branch / checkout_default_strict 调用面"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "priority": "must_read",
+          "hint": "D 编号连续性与条目格式（G5 唯一编号）"
+        }
+      ],
+      "files_to_edit": [
+        "CHANGELOG.md"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 scripts/76-doc-refs-selftest.py",
+      "source": "idea:orchd-flat-claim-deadlock"
     }
   ]
 }
