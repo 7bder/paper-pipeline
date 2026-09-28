@@ -57,12 +57,6 @@
 - 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
-## 2026-09-29 基类 profile 单独生成必炸且报错不定位，需显式声明 extends 模板语义（id: base-profile-standalone-diagnosis）
-- status: pending
-- id: base-profile-standalone-diagnosis
-- 论证: 出处同报告 §2 F-4。python 30-gen-proposals.py --profile profiles/00-base-empirical.yaml → rc=1：task-back-matter depends_on unknown task task-finalize-manuscript——该依赖目标只在领域子档定义，基类实为 extends 模板但 build() 不区分模板档/完整档，报错不说明；75 号夹具选取刻意排除 00- 前缀，场景在自测面外，SKILL/README 亦未声明。修法二选一：①build() 检测「depends_on 指向的任务不在本档且档位无 extends 子角色」时报「基类是 extends 模板，请用领域子档生成」（归 rc=2 用法错而非 rc=1 自检未过）；②文档加一行说明。倾向①，配 75 号守卫（对基类单独跑断言消息含「extends 模板」且 rc=2）。
-- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
-
 ## 2026-09-29 VERSION 的 git describe 口径不可复现（仓库无 tag 且 HEAD 已领先 10 提交），G7 缺新鲜度校验（id: version-tag-freshness）
 - status: pending
 - id: version-tag-freshness

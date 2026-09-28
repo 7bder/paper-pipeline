@@ -31,3 +31,9 @@
 - 论证: 出处同报告 §2 F-6。README:29/:101/:189 写「D-1…D-17」（CHANGELOG 已到 D-20）、:179「17 条设计决策」、:151「待建：task-release-manifest」与 :152「待建：归 task-installer」（两者均已落地：MANIFEST.in+G6/G7 守卫在盘、install.py 在盘且 --selftest 全绿）、:162「docs/ 待出仓」（D-19 已出仓，仓根无该目录）。76 号 G1 只查死引用，区间过时与状态过时全部漏网。修法：逐处更正外，给 76 号新增状态性守卫——README 提及的 D 区间上界 ≥ CHANGELOG 实际最大 D 编号、「待建：task-xxx」字样要求对应任务不在 _master.json completed 集，各配反向对照。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
+## 2026-09-29 基类 profile 单独生成必炸且报错不定位，需显式声明 extends 模板语义（id: base-profile-standalone-diagnosis）
+- status: pending
+- id: base-profile-standalone-diagnosis
+- 论证: 出处同报告 §2 F-4。python 30-gen-proposals.py --profile profiles/00-base-empirical.yaml → rc=1：task-back-matter depends_on unknown task task-finalize-manuscript——该依赖目标只在领域子档定义，基类实为 extends 模板但 build() 不区分模板档/完整档，报错不说明；75 号夹具选取刻意排除 00- 前缀，场景在自测面外，SKILL/README 亦未声明。修法二选一：①build() 检测「depends_on 指向的任务不在本档且档位无 extends 子角色」时报「基类是 extends 模板，请用领域子档生成」（归 rc=2 用法错而非 rc=1 自检未过）；②文档加一行说明。倾向①，配 75 号守卫（对基类单独跑断言消息含「extends 模板」且 rc=2）。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+
