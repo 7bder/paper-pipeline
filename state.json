@@ -1,0 +1,246 @@
+{
+ "generated_at": "2026-09-28T23:03:08+00:00",
+ "schema_version": 1,
+ "tasks": {
+  "task-archive-refs-and-register": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-2f414b8758f04a7c"
+  },
+  "task-base-profile-standalone-diagnosis": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-5a6759831efb46d5"
+  },
+  "task-capability-registry-flip": {
+   "attempt_count": 1,
+   "claimed_by": "cca901c589b6",
+   "claimed_session": "cca901c589b647055e2e3dddadcea4c63a12eafbba4223957e244c915f33b4c3",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-659d0141ce234b80"
+  },
+  "task-capability-registry-resync": {
+   "attempt_count": 1,
+   "claimed_by": "cca901c589b6",
+   "claimed_session": "cca901c589b647055e2e3dddadcea4c63a12eafbba4223957e244c915f33b4c3",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-cf2baa12f14c45ae"
+  },
+  "task-consistency-check-script": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-e73b7d8228c84f4d"
+  },
+  "task-gen-cli-flags-and-p1-guard": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-9cf87f6d18e54080"
+  },
+  "task-installer": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-49a8e8b2c68344ae"
+  },
+  "task-layout-doc-descoping": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-8fb1af8f61c74cc5"
+  },
+  "task-orchd-flat-deadlock-upstream-issue": {
+   "attempt_count": 1,
+   "claimed_by": "31133d0e352d",
+   "claimed_session": "31133d0e352de8e2765ebf4d4e640499c6b1c083df27eefc72ce88a21a5d4a30",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-59a0a3d558e140cd"
+  },
+  "task-orchd-runbook": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-ee994d8a7c6a4d34"
+  },
+  "task-profile-clinical": {
+   "attempt_count": 3,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-6031544b09884e9a"
+  },
+  "task-profile-cs-ml": {
+   "attempt_count": 8,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-ac2cafa01340438f"
+  },
+  "task-profile-social-science": {
+   "attempt_count": 1,
+   "claimed_by": "cca901c589b6",
+   "claimed_session": "cca901c589b647055e2e3dddadcea4c63a12eafbba4223957e244c915f33b4c3",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-2f49042ae54a4115"
+  },
+  "task-profile-substantive-assertions": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-f169ffdc2f6f4dc7"
+  },
+  "task-publisher-fragment-hit": {
+   "attempt_count": 2,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-1127635cd7944364"
+  },
+  "task-readme-drift-state-guards": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-64385a5f3ede4ddc"
+  },
+  "task-readme-generalize": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-b67474e783c2461a"
+  },
+  "task-readme-pipeline-install-step": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-5e6af190bfd946f2"
+  },
+  "task-refs-gate-script": {
+   "attempt_count": 3,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-be2367f405f249e0"
+  },
+  "task-release-manifest": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-4e7844fcb1304e2b"
+  },
+  "task-root-docs-drift-fix": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-f49e37df64f4465e"
+  },
+  "task-selftest-check-engine-e2e": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-45ff4aee9ef44333"
+  },
+  "task-selftest-fixture-decouple": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-d0e3c2dec9ec4898"
+  },
+  "task-static-provenance-reframe": {
+   "attempt_count": 1,
+   "claimed_by": "9d39dd57f0fe",
+   "claimed_session": "9d39dd57f0fe3902372b6157880c101d9ebf8372fe4a3646686d68aaf4f01855",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-ba575284c7794709"
+  },
+  "task-style-check-script": {
+   "attempt_count": 2,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-4e4c6dc45610486c"
+  },
+  "task-verify-encoding-and-manifest-path": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-a747a8b9191a48b7"
+  },
+  "task-verify-manifest-shape-guards": {
+   "attempt_count": 1,
+   "claimed_by": "b1ed5766d9ed",
+   "claimed_session": "b1ed5766d9ed14e7a46ca71a057b7a6a7a1ed707d86d2d6c4a4fdfecca05dc73",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-2607b92ebef94f27"
+  },
+  "task-verify-require-keys-non-dict-guard": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-239bd365bd024474"
+  },
+  "task-verify-timeout-budget-crossref": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-db888fac8f1a4b24"
+  },
+  "task-version-tag-freshness": {
+   "attempt_count": 1,
+   "claimed_by": "d24010e4f699",
+   "claimed_session": "d24010e4f699ca9bdf7c2bdab1ac3f4b7c70896f689246939e8cb8b592c56ea9",
+   "review_self_review": true,
+   "status": "completed",
+   "updated_event_id": "evt-36d4457c6ee0431d"
+  }
+ }
+}
