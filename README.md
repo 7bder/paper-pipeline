@@ -98,7 +98,7 @@ paper-pipeline/
 ├── SKILL.md                  技能入口（机器读：何时触发、阶段序、协同契约、硬约束）
 ├── README.md                 本文件（人读）
 ├── MANIFEST.in               发布面清单（单一真源；由发版流程维护）
-├── CHANGELOG.md              设计决策记录 D-1…D-20（为什么这么定，含引擎实测坑）
+├── CHANGELOG.md              设计决策记录 D-1…D-21（为什么这么定，含引擎实测坑）
 ├── profiles/                 领域档（四轴：论文类型×证据形态×出版社×语言/报告规范）
 │   ├── 00-base-empirical.yaml        通用基类：证据口径 + back-matter + P-1 资产规划
 │   ├── 10-materials-chemistry.yaml   材料/化工/涂层（源自真实项目 paper1，回归基线档，24 任务）
