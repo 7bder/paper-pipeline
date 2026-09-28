@@ -42,3 +42,8 @@
 - id: verify-timeout-budget-crossref
 - 论证: 出处同报告 §2 F-7。verify_command 受引擎 _VERIFY_TIMEOUT=120s 硬上限（例外通道 amend --verify-timeout-seconds 上界 600s，见 .orchd/rules/verify.md），而 70-verify.py 的 run 断言超时 RUN_TIMEOUT=300s；任务配 120–300s 的 run 命令时默认预算下引擎先 E014，基座 300s 承诺不可达，两层文档无互相提示。修法：70-verify.py --schema 文案与 SKILL.md 协同契约各补一句「run 断言实际预算受引擎 verify_command 超时约束（默认 120s，例外通道 600s）」，76 号可加互引存在性守卫。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
+## 2026-09-29 VERSION 的 git describe 口径不可复现（仓库无 tag 且 HEAD 已领先 10 提交），G7 缺新鲜度校验（id: version-tag-freshness）
+- status: pending
+- id: version-tag-freshness
+- 论证: 出处同报告 §2 F-1。VERSION=v0.1.0-0-g60c0cd0，git describe --tags fatal（无任何 tag），HEAD 793e4d7 领先该提交 10 个提交；D-19 定义 VERSION 为 git describe 口径但当前值无法从仓库状态复现（-0-g 形态要求 HEAD 恰在 tag 上）。76 号 G7 只验形态 vX.Y.Z[-N-g<sha>]，不验与 git 实际状态一致。修法二选一：①在 60c0cd0 打 v0.1.0 tag 并约定发版即打 tag（此后 git describe 可复现；tag 属 git 写操作，执行须用户授权并按引擎纪律走）；②VERSION 改纯语义版本口径并在 CHANGELOG 补记。另可给 G7 加弱校验：git describe 成功时其输出须等于 VERSION 内容。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
