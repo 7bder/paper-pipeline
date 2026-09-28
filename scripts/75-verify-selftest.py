@@ -1167,6 +1167,95 @@ def run_manifest_shape_guards() -> int:
     return 1 if bad else 0
 
 
+def run_engine_e2e_guard() -> int:
+    """--check 正路端到端守卫（审查 F-3，2026-09-29）：生成器产物 → 真实引擎 validate。
+
+    既有「给了 --project 不被新守卫拦下」用例拿不存在的空目录当 project（引擎侧必然失败，
+    注释自述不要求 rc=0），--check 的正路（生成 → cwd=project 执行 .orchd/__main__.py validate
+    合成 master）在自测中从未真正执行；引擎升级后 master fragment 与引擎 schema 的兼容性
+    无自动回归（此前最近一次人工验证停留在 CHANGELOG D-8/D-11）。本守卫以**本仓自身**为
+    --project（.orchd/ 引擎在盘），对在盘领域档跑真实 --check 断言 PASS；并以坏 master
+    反向对照证明 validate 结果真的被解析（防断言空转假绿）。沙盒全在系统临时目录：
+    --out 指临时目录，check() 对 --project 只读且子进程带 -B，不触发布局面。
+    """
+    cases: list[tuple[str, bool, str]] = []
+    gen = HERE / "30-gen-proposals.py"
+    profiles = HERE.parent / "profiles"
+    engine_entry = HERE.parent / ".orchd" / "__main__.py"
+
+    def call(*args) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", "-X", "utf8", str(gen), *args],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace")
+
+    def validate(master: pathlib.Path) -> subprocess.CompletedProcess:
+        # 与 30-gen-proposals.py check() 同形态：cwd=项目根、-B、master 传绝对路径。
+        # 失败时的退出码语义随引擎版本而变（E-13 修复前 rc=0，v1.5.0-1 起非法 master
+        # 返回 rc=1）——判定锚一律以 JSON 的 valid 字段为准，退出码只作辅助断言。
+        return subprocess.run([sys.executable, "-B", ".orchd/__main__.py", "validate",
+                               str(master)], cwd=str(HERE.parent), capture_output=True,
+                              text=True, encoding="utf-8", errors="replace")
+
+    with tempfile.TemporaryDirectory() as td:
+        base = pathlib.Path(td)
+        if not engine_entry.exists():
+            print("== 引擎端到端守卫（F-3）==\n"
+                  "  SKIP  本仓 .orchd/__main__.py 不在盘（引擎未接入）——不判 PASS")
+            return 0
+        # 锚点：坏 master（depends_on 指向不存在任务）经引擎 validate 必 valid:false——
+        # 证明本段对 validate JSON 的解析路径真的能区分 PASS/FAIL，而非陪着好 master 空转。
+        bad = {"schema_version": 1,
+               "project": {"name": "e2e-anchor", "brief": "anchor"},
+               "modules": [],
+               "tasks": [{"id": "task-anchor-a", "name": "a", "brief": "a", "module": "m",
+                          "depends_on": ["task-not-registered-anywhere"],
+                          "acceptance_criteria": ["AC 必须含 00-admin/00-plan.md（锚点占位）"],
+                          "files_to_edit": ["00-admin/00-plan.md"],
+                          "verify_command": "python x task-anchor-a"}]}
+        badp = base / "bad-master.json"
+        badp.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        vbad = validate(badp)
+        try:
+            bad_valid = bool(json.loads((vbad.stdout or "").lstrip("\ufeff")).get("valid"))
+        except json.JSONDecodeError:
+            bad_valid = None
+        cases.append(("锚点：坏 master（未知 depends_on）经引擎 validate 报失败且 valid:false",
+                      vbad.returncode != 0 and bad_valid is False,
+                      "rc=%d valid=%r out=%r" % (vbad.returncode, bad_valid,
+                                                 (vbad.stdout or "")[-90:])))
+
+        # 正路：以本仓为 --project 对两档代表跑真实 --check（最小子档 clinical + 回归基线档 materials）。
+        checked = 0
+        for prof in (profiles / "10-clinical.yaml", profiles / "10-materials-chemistry.yaml"):
+            if not prof.exists():
+                continue
+            outdir = base / ("e2e-" + prof.stem)
+            r = call("--profile", str(prof), "--check", "--project", str(HERE.parent),
+                     "--out", str(outdir))
+            cases.append(("--check 正路（%s）：生成 → 引擎 validate PASS" % prof.name,
+                          r.returncode == 0 and "orchd validate -> PASS" in (r.stdout or ""),
+                          "rc=%d out=%r" % (r.returncode, (r.stdout or "")[-110:])))
+            emitted = list(outdir.rglob("*")) if outdir.exists() else []
+            cases.append(("--check 生成物全部落 --out（临时目录，含 _validate.proposed.json）",
+                          r.returncode == 0 and any(p.name == "_validate.proposed.json"
+                                                    for p in emitted),
+                          "files=%d" % len(emitted)))
+            checked += 1
+        if checked == 0:
+            print("== 引擎端到端守卫（F-3）==\n"
+                  "  SKIP  profiles 无在盘领域档——正路用例显式跳过，不判 PASS（锚点结论仍有效）")
+            return 1 if any(not ok for _, ok, _ in cases) else 0
+
+    print("== 引擎端到端守卫（F-3）==")
+    bad = 0
+    for name, ok, detail in cases:
+        print("  %-52s %s%s" % (name, "OK" if ok else "MISMATCH",
+                                "" if ok or not detail else "  " + detail))
+        if not ok:
+            bad += 1
+    return 1 if bad else 0
+
+
 def run_parity(project: pathlib.Path) -> int:
     """与项目自带 verify 脚本逐任务比对判定（rc 必须一致）。"""
     script = project / "scripts" / "verify.py"
@@ -1204,6 +1293,7 @@ def main() -> int:
     rc |= run_rc_semantics_guards()
     rc |= run_generator_guards()
     rc |= run_gen_cli_guards()
+    rc |= run_engine_e2e_guard()
     rc |= run_fragment_guards()
     rc |= run_registry_guards()
     rc |= run_encoding_and_path_guards()
