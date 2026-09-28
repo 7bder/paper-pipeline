@@ -1184,6 +1184,50 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
       "source": "idea:readme-pipeline-install-step"
+    },
+    {
+      "id": "task-readme-drift-state-guards",
+      "name": "README 状态过时表述更正与 76 号状态性守卫",
+      "brief": "README 尾部 7 处状态过时：:29/:101/:189 写「D-1…D-17」（CHANGELOG 已到 D-20）、:179「17 条设计决策沉淀」、:151「待建：task-release-manifest」与 :152「待建：归 task-installer」（两者均已落地：MANIFEST.in+G6/G7 守卫在盘、install.py 在盘且 --selftest 全绿）、:162「docs/（引擎血统件，待出仓）」（D-19 已出仓，仓根无该目录）。76 号 G1 只查死引用，区间过时与状态过时全部漏网。本任务逐处更正并新增状态性守卫。出处：reports/00-REVIEW-2026-09-29.md §2 F-6。",
+      "module": "mod-release-hygiene",
+      "depends_on": [
+        "task-readme-pipeline-install-step"
+      ],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "README 必须不再出现「D-1…D-17」字样与「17 条设计决策」表述（改为与 CHANGELOG 实际条目一致，或改用不含具体数字的措辞）",
+        "README 必须不再出现「待建：task-release-manifest」「待建：归 task-installer」「docs/（引擎血统件，待出仓）」三处过时表述",
+        "scripts/76-doc-refs-selftest.py 新增状态性守卫：README 中 D 区间表述的上界必须 ≥ CHANGELOG 实际最大 D 编号（正则抽取），且 README 禁止出现「待建：」后跟 task- 的组合字样；两条守卫各配反向对照（守卫摘除必红）",
+        "python -X utf8 -B scripts/76-doc-refs-selftest.py 全绿（含新增守卫）"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-6：7 处漂移的行级对照表"
+        },
+        {
+          "path": "README.md",
+          "priority": "must_read",
+          "hint": "待更正的 7 处行号见 brief"
+        },
+        {
+          "path": "scripts/76-doc-refs-selftest.py",
+          "priority": "must_read",
+          "hint": "G1-G7 现有守卫与 --selftest 合成用例的反向对照写法"
+        }
+      ],
+      "files_to_edit": [
+        "README.md",
+        "scripts/76-doc-refs-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
+      "source": "idea:readme-drift-state-guards"
     }
   ]
 }
