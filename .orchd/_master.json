@@ -1228,6 +1228,50 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
       "source": "idea:readme-drift-state-guards"
+    },
+    {
+      "id": "task-base-profile-standalone-diagnosis",
+      "name": "生成器对基类档单独生成给出 rc=2 定位诊断",
+      "brief": "profiles/00-base-empirical.yaml 单独跑 30-gen-proposals.py 以 rc=1「task-back-matter: depends_on unknown task task-finalize-manuscript」收场——该依赖目标只在领域子档定义，基类实为 extends 模板但 build() 不区分模板档/完整档，报错无指引；75 号夹具选取刻意排除 00- 前缀，该场景在自测面外，SKILL/README 亦未声明「基类不可独立生成」。本任务让基类档单独生成归 rc=2 用法错并给出明确指引。出处：reports/00-REVIEW-2026-09-29.md §2 F-4。",
+      "module": "mod-judgment",
+      "depends_on": [
+        "task-selftest-check-engine-e2e"
+      ],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "python -X utf8 -B scripts/30-gen-proposals.py --profile profiles/00-base-empirical.yaml --out <任意临时目录> 必须以 rc=2 结束，消息同时含「extends 模板」与「领域子档」指引词，不再以 rc=1 生成期自检形态收场",
+        "五个领域子档行为零回归：生成期 problems=0 且任务数不变（materials 24 / wbpu 26 / clinical 22 / social 22 / cs-ml 24）",
+        "scripts/75-verify-selftest.py 新增守卫：基类单独跑断言 rc=2 与指引关键词；并带子档不受影响的反向对照",
+        "python -X utf8 -B scripts/75-verify-selftest.py 与 python -X utf8 -B scripts/78-assertions-selftest.py 全量 PASS"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-4：基类炸点与自测盲区"
+        },
+        {
+          "path": "scripts/30-gen-proposals.py",
+          "priority": "must_read",
+          "hint": "load_profile :99-121（extends 解析）、build :149-284（depends_on 校验 :268-272）、main :620-655"
+        },
+        {
+          "path": "profiles/00-base-empirical.yaml",
+          "priority": "reference",
+          "hint": "task-back-matter 的 depends_on 定义位置"
+        }
+      ],
+      "files_to_edit": [
+        "scripts/30-gen-proposals.py",
+        "scripts/75-verify-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/75-verify-selftest.py",
+      "source": "idea:base-profile-standalone-diagnosis"
     }
   ]
 }
