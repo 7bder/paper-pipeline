@@ -1361,9 +1361,10 @@
         }
       ],
       "files_to_edit": [
+        "CHANGELOG.md",
+        "README.md",
         "VERSION",
-        "scripts/76-doc-refs-selftest.py",
-        "CHANGELOG.md"
+        "scripts/76-doc-refs-selftest.py"
       ],
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/76-doc-refs-selftest.py",
