@@ -244,6 +244,13 @@
 - **task-static-provenance-reframe 的逐条对照归档**（该任务声明域不含 CHANGELOG，对照在此收口）：elsevier-numbered 6 处、md-single-source 3 处、lab-experimental-reporting 1 处——均为出处句式替换（"paper1 定稿"→"真实定稿验证/出处定稿实测"），8/9/7 条规则正文逐字未动；60 号 §3.4 去项目点名、保留防杜撰约束。
 - **守卫的靶子**：MANIFEST 删行/加不存在的路径、仓根新建执行目录、DEV_TIER 文件入清单、VERSION 被删或改坏形态——`python -X utf8 scripts/76-doc-refs-selftest.py` 必须 rc=1。
 
+## D-21 VERSION 口径改纯语义版本（2026-09-29，task-version-tag-freshness）
+
+- **决策**：VERSION 从 git describe 口径（D-19 定义）改为**纯语义版本**（`vX.Y.Z`），当前值 `v0.2.0`（本轮 2026-09-29 审查 7 项修复完成后 minor bump）。
+- **理由**：仓库自 git init（D-15）以来从未打过 tag，原值 `v0.1.0-0-g60c0cd0` 的 `-N-g<sha>` 形态要求 HEAD 恰在 tag 上，实际无法用 git describe 复现（`fatal: No names found`），且 HEAD（793e4d7）已领先该提交 10 个提交——口径名存实亡（审查 F-1，报告 `reports/00-REVIEW-2026-09-29.md` §2）。
+- **G7 弱校验（本任务落地）**：describe 形态的 VERSION 必须 git describe 可复现（成功且输出一致）才放行；仓库无 tag / 非 git 目录却写 describe 形态即 FAIL（防复发）。纯语义版本免查。76 号 --selftest 反控制同步加 VERSION 不可复现负例。
+- **tag 路线说明**：若未来走 tag 发版（打 tag 后 git describe 可复现），可回归 describe 口径——tag 属 git 写操作，须用户授权并按引擎纪律执行。
+
 ## D-20 orchd flat 布局滞留缝隙的上游 issue 固化（2026-09-28，task-orchd-flat-deadlock-upstream-issue）
 
 - **决策**：把登记于 `.orchd/IDEAS.md` 的 `orchd-flat-claim-deadlock` 固化为可转交上游 orchd-core 的 issue 记录。结论是引擎问题、本仓不改引擎本体（`conventions.md` 第 6 节发布边界），故本条只承载 issue 文本与绕行口径。触发事件为一次真实滞留：任务进行中发现 elsevier 标题悬空路径需连带修改、而该文件不在声明域内，`retract` 后工作区滞留任务分支、`checkout` 被策略拒绝，最终经 `force-status` 重认领 + `amend` 受管往返闭环（全程 ledger 留痕）。

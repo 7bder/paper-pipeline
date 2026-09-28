@@ -147,6 +147,28 @@ def manifest_violations(root: pathlib.Path) -> list:
         head = vp.read_text(encoding="utf-8-sig").strip().splitlines()
         if not head or not VERSION_RE.match(head[0].strip()):
             out.append("VERSION 首行非 vX.Y.Z 形态：%s" % (head[0][:30] if head else "空文件"))
+        else:
+            # F-1（2026-09-29 审查）：describe 形态（vX.Y.Z-N-g<sha>）的 VERSION 必须可
+            # 复现——git describe 成功且输出一致，否则 FAIL；仓库无 tag / 非 git 目录却写
+            # describe 形态即病态（曾 v0.1.0-0-g60c0cd0 挂在无 tag 仓库上、HEAD 漂 10 个
+            # 提交无人察觉）。纯语义版本（vX.Y.Z，D-21 口径）免查。
+            ver = head[0].strip()
+            import subprocess
+            if not re.match(r"^v\d+\.\d+\.\d+$", ver):
+                in_git = (root / ".git").exists() or (root / ".git").is_dir()
+                described = ""
+                if in_git:
+                    r = subprocess.run(["git", "describe", "--tags", "--long"], cwd=str(root),
+                                       capture_output=True, text=True, encoding="utf-8",
+                                       errors="replace")
+                    described = (r.stdout or "").strip()
+                    reproducible = r.returncode == 0 and described == ver
+                else:
+                    reproducible = False
+                if not reproducible:
+                    out.append("VERSION=%r 为 git describe 形态但不可复现（describe 输出 %r）"
+                               "——仓库无 tag 或 HEAD 漂移；请打 tag 或改纯语义版本（D-21）"
+                               % (ver, described))
     return out
 
 
@@ -563,7 +585,7 @@ def selftest() -> int:
     with tempfile.TemporaryDirectory() as td:
         troot = pathlib.Path(td)
         (troot / "MANIFEST.in").write_text("# clean\ninclude SKILL.md\ninclude scripts/70-verify.py\n", encoding="utf-8")
-        (troot / "VERSION").write_text("v0.1.0-0-g0000000\n", encoding="utf-8")
+        (troot / "VERSION").write_text("v0.1.0\n", encoding="utf-8")
         (troot / "SKILL.md").write_text("# x\n", encoding="utf-8")
         for d in SHIP_DIRS:
             (troot / d).mkdir(exist_ok=True)          # 正控制要求五个发布目录齐备（空目录=无未覆盖文件）
@@ -574,6 +596,10 @@ def selftest() -> int:
         g67_neg = root_purity_violations(troot) + manifest_violations(troot)
         ok_neg = (any("10-data" in v for v in g67_neg)
                   and any("scripts/ghost.py" in v for v in g67_neg))
+        # F-1 负例：临时目录非 git 仓库却写 describe 形态 → 不可复现必红
+        (troot / "VERSION").write_text("v0.1.0-0-g0000000\n", encoding="utf-8")
+        ver_neg = manifest_violations(troot)
+        ok_ver = any("不可复现" in v for v in ver_neg)
         (troot / "MANIFEST.in").write_text("include SKILL.md\ninclude scripts/absent.py\n", encoding="utf-8")
         miss = manifest_violations(troot)
         ok_miss = (any("absent.py" in v for v in miss)
@@ -582,13 +608,14 @@ def selftest() -> int:
         (troot / "scripts" / "76-doc-refs-selftest.py").write_text("# w\n", encoding="utf-8")
         dev = manifest_violations(troot)
         ok_dev = any("开发层文件被列入清单" in v for v in dev)
-        g67_ok = ok_pos and ok_neg and ok_miss and ok_dev
-        counters["control"] += 4        # 正控制 1 + 三组负例（执行目录/未覆盖、列缺、开发层入清）
-        print("  G6/G7 反向对照（临时目录）：正控制=%s 执行目录混入+未覆盖=%s 列缺/缺覆盖=%s 开发层入清=%s  %s"
-              % (ok_pos, ok_neg, ok_miss, ok_dev, "OK" if g67_ok else "MISMATCH"))
+        g67_ok = ok_pos and ok_neg and ok_ver and ok_miss and ok_dev
+        counters["control"] += 5        # 正控制 1 + 四组负例（执行目录/未覆盖、VERSION 不可复现、列缺、开发层入清）
+        print("  G6/G7 反向对照（临时目录）：正控制=%s 执行目录混入+未覆盖=%s VERSION不可复现=%s "
+              "列缺/缺覆盖=%s 开发层入清=%s  %s"
+              % (ok_pos, ok_neg, ok_ver, ok_miss, ok_dev, "OK" if g67_ok else "MISMATCH"))
         if not g67_ok:
-            bad.append("G6/G7 反向对照未全绿（正控制=%s 负例=%s 列缺=%s 开发层=%s）"
-                       % (ok_pos, ok_neg, ok_miss, ok_dev))
+            bad.append("G6/G7 反向对照未全绿（正控制=%s 负例=%s VERSION=%s 列缺=%s 开发层=%s）"
+                       % (ok_pos, ok_neg, ok_ver, ok_miss, ok_dev))
 
     # G9 反向对照：合成临时目录（SKILL.md + scripts/70-verify.py），正反双向（审查 F-7）。
     with tempfile.TemporaryDirectory() as tg:
