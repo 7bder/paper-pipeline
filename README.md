@@ -127,10 +127,14 @@ paper-pipeline/
 
 1. 跑生成器：`python scripts/30-gen-proposals.py --profile profiles/<x>.yaml --out <输出目录>`
    （输出目录直接放目标论文项目内，或生成后拷入）
-2. 在**目标论文项目**内：`python .orchd/__main__.py validate`（必须通过）
-3. **由你**执行注册：`intake` / `amend --register`（本技能永不代注册）
-4. 之后全程走引擎：`request → claim → done → review → merge`，判据脚本经 `verify_command` 调用
-5. 踩坑用 `python .orchd/__main__.py lesson ...` 回灌，不另建自由文档
+2. **装配判据基座（不可跳过）**：`python paper-pipeline/install.py <论文项目>/ --mode project --profile <profile 文件名>`
+   ——把 `70-verify.py` / `71-verify-manifest.json` vendor 进项目 `70-tools/`。跳过此步的话，
+   任务 done 时 `verify_command` 引用的脚本在项目里不存在，E014/E037 必撞墙。
+   两种安装模式的完整说明见下方[安装与发布边界](#安装与发布边界)。
+3. 在**目标论文项目**内：`python .orchd/__main__.py validate`（必须通过）
+4. **由你**执行注册：`intake` / `amend --register`（本技能永不代注册）
+5. 之后全程走引擎：`request → claim → done → review → merge`，判据脚本经 `verify_command` 调用
+6. 踩坑用 `python .orchd/__main__.py lesson ...` 回灌，不另建自由文档
 
 ## 哪些事必须你亲自做（人工闸门）
 
@@ -157,6 +161,8 @@ git clone <本仓地址> && python paper-pipeline/install.py <技能目录> --mo
 # project 模式：判据基座 vendor 进论文项目（70-tools/ 规范路径）
 python paper-pipeline/install.py <论文项目>/ --mode project --profile <profile 文件名>
 ```
+
+> project 模式即上方[与 orchd 的接法](#与-orchd-的接法唯一正确姿势)第 2 步的装配动作，**不可跳过**。
 
 **开发层（不入发布面）**：`.orchd/`（开发编排引擎工作区）、`build/`（生成物沙盒）、
 `reports/`（审计档案）、`docs/`（引擎血统件，待出仓）、`scripts/76-doc-refs-selftest.py`
