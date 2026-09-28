@@ -57,3 +57,8 @@
 - 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
+## 2026-09-29 VERSION 的 git describe 口径不可复现（仓库无 tag 且 HEAD 已领先 10 提交），G7 缺新鲜度校验（id: version-tag-freshness）
+- status: pending
+- id: version-tag-freshness
+- 论证: 出处同报告 §2 F-1。VERSION=v0.1.0-0-g60c0cd0，git describe --tags fatal（无任何 tag），HEAD 793e4d7 领先该提交 10 个提交；D-19 定义 VERSION 为 git describe 口径但当前值无法从仓库状态复现（-0-g 形态要求 HEAD 恰在 tag 上）。76 号 G7 只验形态 vX.Y.Z[-N-g<sha>]，不验与 git 实际状态一致。修法二选一：①在 60c0cd0 打 v0.1.0 tag 并约定发版即打 tag（此后 git describe 可复现；tag 属 git 写操作，执行须用户授权并按引擎纪律走）；②VERSION 改纯语义版本口径并在 CHANGELOG 补记。另可给 G7 加弱校验：git describe 成功时其输出须等于 VERSION 内容。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
