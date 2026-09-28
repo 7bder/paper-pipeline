@@ -36,8 +36,11 @@ files[]（文本/产物文件）：
 json_files[]（JSON 数据文件）：
   path            必填
   min_items / max_items   顶层长度区间（列表或对象）
-  require_keys[]          列表模式下检查第 1 个元素应含的键
-  require_keys_all[]      列表模式下检查**每个**元素都应含的键（逐条校验的硬口径）
+  require_keys[]          列表模式下检查第 1 个元素应含的键；第 1 个元素不是对象时
+                          判 FAIL 并点明实际类型（朴素 `key not in data[0]` 对标量
+                          TypeError 冒充 FAIL、对 str 退化为子串判定假 PASS，审查 F-2）
+  require_keys_all[]      列表模式下检查**每个**元素都应含的键（逐条校验的硬口径；
+                          元素不是对象同样计入失败）
 
   与 min_items 的组合语义（N-3，"逐条字段齐全"类 AC 的 fail-open 修正）：
     逐条键检查是对**已有元素**求"每条都含此键"，空列表下 0 条恒真。所以
@@ -194,9 +197,19 @@ def check_json(j: dict, errs: list, oks: list) -> None:
             errs.append(f"{rel}: 空列表但配了 require_keys*"
                         f"（{'、'.join(repr(k) for k in want)}）— 逐条键检查 0 条恒真（空转），"
                         "请补 min_items≥1 或删去键要求")
-        for key in j.get("require_keys", []):
-            if data and key not in data[0]:
-                errs.append(f"{rel}: first item missing key {key!r}")
+        # F-2（2026-09-29 审查）：首元素不一定是对象——朴素 `key not in data[0]` 对标量
+        # TypeError 裸崩（rc=1 冒充 FAIL）、对 str 退化为子串判定（rc=0 假 PASS），
+        # 与 N-2/N-3 同族。逐条键检查对非对象元素无意义，判 FAIL 并点明实际类型
+        # （与下方 require_keys_all 的 isinstance 防御同口径）。
+        req_first = list(j.get("require_keys") or [])
+        if data and req_first and not isinstance(data[0], dict):
+            errs.append(f"{rel}: first item is not an object (actual type "
+                        f"{type(data[0]).__name__}) — require_keys 检查第 1 项键在此无意义，"
+                        "请修正产物形态（列表元素应为对象）")
+        else:
+            for key in req_first:
+                if data and key not in data[0]:
+                    errs.append(f"{rel}: first item missing key {key!r}")
         for key in j.get("require_keys_all", []):
             bad = [i for i, it in enumerate(data) if not isinstance(it, dict) or key not in it]
             if bad:

@@ -991,6 +991,52 @@ def run_manifest_shape_guards() -> int:
                       "require_keys_all" in rschema.stdout and "min_items" in rschema.stdout
                       and "空列表" in rschema.stdout, "rc=%d" % rschema.returncode))
 
+        # ==== 类 1b：require_keys 对非 dict 首元素（审查 F-2，2026-09-29 实锤）====
+        # 朴素 `key not in data[0]`：int 首元素 TypeError 裸崩（rc=1 冒充 FAIL）、
+        # str 首元素退化为子串判定（rc=0 假 PASS）。两条锚点证明朴素写法确实错，
+        # 行为断言在防御被摘除时分别以 traceback 痕迹 / rc=0 变红。
+        anchor = snippet("d=[1,2,3]\n"
+                         "try:\n"
+                         "    'doi' not in d[0]\n"
+                         "except TypeError:\n"
+                         "    import sys;sys.exit(3)\n"
+                         "sys.exit(0)")
+        cases.append(("锚点：int 首元素下 `key not in data[0]` 必 TypeError",
+                      anchor.returncode == 3, "rc=%d" % anchor.returncode))
+        anchor = snippet("import sys;sys.exit(0 if 'doi' in 'doi is here' else 1)")
+        cases.append(("锚点：str 首元素下 `not in` 退化为子串判定（假 PASS 源）",
+                      anchor.returncode == 0, "rc=%d" % anchor.returncode))
+        r = mk("int-first", {"t": {"json_files": [{"path": "e.json",
+                                                   "require_keys": ["doi"]}]}},
+               {"e.json": "[1, 2, 3]"})
+        q1 = call(r, "t")
+        cases.append(("int 首元素 + require_keys → rc=1 FAIL 且无 traceback",
+                      q1.returncode == 1 and not crashed(q1),
+                      "rc=%d %s" % (q1.returncode, crashed(q1) or q1.stdout[-120:])))
+        cases.append(("FAIL 消息点明首元素实际类型 int",
+                      "not an object" in q1.stdout and "int" in q1.stdout,
+                      "stdout=%r" % q1.stdout[-160:]))
+        r = mk("str-first", {"t": {"json_files": [{"path": "e.json",
+                                                   "require_keys": ["doi"]}]}},
+               {"e.json": json.dumps(["doi is here", {"x": 1}])})
+        q2 = call(r, "t")
+        cases.append(("str 首元素 + require_keys → rc=1（子串假 PASS 已堵）",
+                      q2.returncode == 1 and "str" in q2.stdout,
+                      "rc=%d %s" % (q2.returncode, q2.stdout[-120:])))
+        r = mk("obj-missing", {"t": {"json_files": [{"path": "e.json",
+                                                     "require_keys": ["doi"]}]}},
+               {"e.json": json.dumps([{"title": "x"}])})
+        q3 = call(r, "t")
+        cases.append(("对照组：对象列表缺键仍 rc=1（口径不糊）",
+                      q3.returncode == 1 and "first item missing key 'doi'" in q3.stdout,
+                      "rc=%d %s" % (q3.returncode, q3.stdout[-120:])))
+        r = mk("obj-ok", {"t": {"json_files": [{"path": "e.json",
+                                                "require_keys": ["doi"]}]}},
+               {"e.json": json.dumps([{"doi": "10.1/x"}])})
+        q4 = call(r, "t")
+        cases.append(("对照组：对象列表含键仍 rc=0（防过度收紧）",
+                      q4.returncode == 0, "rc=%d %s" % (q4.returncode, q4.stdout[-120:])))
+
         # ==== 类 2：条目值形态（N-2，曾以 AttributeError 裸崩冒充 FAIL）====
         anchor = snippet("s='oops';s.get('files')")
         cases.append(("锚点：朴素 spec.get 对字符串必崩",
