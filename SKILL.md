@@ -83,6 +83,10 @@ P2 之后四种模式完全汇合：claim 需求单 → 定向文献 → 写作 
 
 manifest 驱动的只读验收；每个任务的 `verify_command` 调用它。**断言类型集合不得回退**（逐字保持语义）。
 
+**run 断言预算口径**：基座内层超时 300s，但实际预算受引擎 `verify_command` 超时约束
+（引擎默认 120s，例外通道 `amend --verify-timeout-seconds` 上界 600s）——配 120-300s 的
+run 命令会先触发引擎 E014，须先走例外通道提高任务预算。
+
 - 用法：`python 70-tools/70-verify.py <task-id>`；`--all` 全量；`--json` 机器可读；`--schema` 打印断言 schema；`--list` 列任务；`--root/--manifest` 可对别的项目跑。
 - 退出码：`0`=PASS，`1`=有未满足断言，`2`=用法/manifest 问题（含坏 manifest）。
 - 任务条目四段（均可省略；四段全空即空验收，直接 PASS——手工 manifest 勿写空条目）：

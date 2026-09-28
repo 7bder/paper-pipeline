@@ -6,7 +6,7 @@
     python -X utf8 scripts/76-doc-refs-selftest.py            # 七条守卫（verify_command 形态）
     python -X utf8 scripts/76-doc-refs-selftest.py --selftest # 合成控制用例（红绿双向 + 反向对照）
 
-七条守卫（G1/G3 对 AC1、AC2，G4 对 AC3，G2/G5 是同类悬空引用的横向补齐；G6/G7 为发布纯净化新增）：
+九条守卫（G1/G3 对 AC1、AC2，G4 对 AC3，G2/G5 是同类悬空引用的横向补齐；G6/G7 为发布纯净化新增；G8/G9 为 2026-09-29 审查 F-6/F-7 新增）：
   G1 死档案引用：发布面文档引用 `00-DECISIONS.md` / `00-REVIEW-2026-09-25.md` / 仓外 vendor 目录时，
      同一行必须带失效标记（"已消失 / 不在磁盘 / 重命名 / 悬空 / 丢失 …"），否则按悬空引用判 FAIL；
      `references/00-project-layout.md` 对 `00-DECISIONS.md` 是**硬零**（AC1 逐字要求）。
@@ -16,8 +16,12 @@
   G5 编号唯一：`## D-n` 二级标题编号不得重复。
   G6 执行目录纯净：仓根出现论文项目执行目录（00-admin/10-data/… 及 manuscript/lit 等旧布局名）即 FAIL
      ——本仓只放通用 skill，试点与执行一律在独立项目目录（2026-09-28 用户裁定）。
-  G7 发布清单完整：`MANIFEST.in` 纯白名单——清单内路径必须在盘、发布目录盘面文件必须被清单覆盖、
-     开发层文件（本脚本自身）不得入清单、`VERSION` 必须在盘且为 vX.Y.Z 形态。
+   G7 发布清单完整：`MANIFEST.in` 纯白名单——清单内路径必须在盘、发布目录盘面文件必须被清单覆盖、
+      开发层文件（本脚本自身）不得入清单、`VERSION` 必须在盘且为 vX.Y.Z 形态。
+   G8 状态性漂移（审查 F-6）：README 的 D 区间上界必须等于 CHANGELOG 实际最大 D 编号；
+      README 禁止「待建：task-…」注记（任务落地后必须改述为事实——引用目标一直在盘，G1 抓不到）。
+   G9 超时预算互引（审查 F-7）：SKILL.md §判据基座 与 scripts/70-verify.py 文档面必须都含
+      引擎 120s / 例外通道 600s 口径字样，缺任一侧即两层文档脱节。
 
 只读承诺：不写本仓任何文件（`--selftest` 的文本用例全在内存；G6/G7 反向对照写**系统临时目录**，用毕即删）。
 """
@@ -57,6 +61,10 @@ H2_D = re.compile(r"^## (D-\d+)\b", re.M)
 # G8 状态性漂移（审查 F-6，2026-09-29）：D 区间声明上界过时 / 「待建：task-…」落地后未摘除。
 D_RANGE = re.compile(r"D-1…D-(\d+)")
 PENDING_NOTE = re.compile(r"待建[：:]\s*`?task-")
+# G9 超时预算互引（审查 F-7，2026-09-29）：SKILL.md 判据基座节与 70-verify.py 文档面
+# 必须都含引擎 120s/例外通道 600s 口径——缺任一侧即两层文档脱节（引擎改预算只改
+# rules/verify.md 时，基座与技能文档的读者无感，run 断言配 120-300s 必撞 E014）。
+TIMEOUT_WORDS = ("120s", "600s")
 H3_D = re.compile(r"^### (D-\d+) 续\b", re.M)
 REL_PATH = re.compile(r"(?<![\w/.-])((?:references|scripts|profiles)/[\w./*-]+\.md|"
                       r"(?:references|scripts|profiles)/[\w./*-]+\.(?:py|yaml|json))")
@@ -139,6 +147,28 @@ def manifest_violations(root: pathlib.Path) -> list:
         head = vp.read_text(encoding="utf-8-sig").strip().splitlines()
         if not head or not VERSION_RE.match(head[0].strip()):
             out.append("VERSION 首行非 vX.Y.Z 形态：%s" % (head[0][:30] if head else "空文件"))
+    return out
+
+
+def timeout_crossref_violations(root: pathlib.Path) -> list:
+    """G9：verify 超时预算互引存在性（读 root 磁盘面，不走 texts 快照——G6/G7 同款）。"""
+    out = []
+    skill = root / "SKILL.md"
+    verify = root / "scripts" / "70-verify.py"
+    if not skill.exists() or not verify.exists():
+        return out                      # 发布面残缺由 G7 管，这里不重复报
+    skill_text = skill.read_text(encoding="utf-8-sig", errors="replace")
+    verify_text = verify.read_text(encoding="utf-8-sig", errors="replace")
+    m = re.search(r"^## 判据基座\b.*?(?=^## |\Z)", skill_text, re.M | re.S)
+    section = m.group(0) if m else ""
+    for w in TIMEOUT_WORDS:
+        if w not in section:
+            out.append("SKILL.md §判据基座 缺 run 断言预算口径字样 %r（须说明实际预算受引擎 "
+                       "verify_command 超时约束：默认 120s、例外通道 600s）" % w)
+    for w in TIMEOUT_WORDS:
+        if w not in verify_text:
+            out.append("scripts/70-verify.py 文档面缺 %r（run 断言 300s 内层超时与引擎 "
+                       "120s/600s 预算的关系必须写进 --schema 输出）" % w)
     return out
 
 
@@ -331,6 +361,9 @@ def check(texts: dict) -> list:
         fail("G6", v)
     for v in manifest_violations(ROOT):
         fail("G7", v)
+    # ---- G9 verify 超时预算互引（审查 F-7）---------------------------------
+    for v in timeout_crossref_violations(ROOT):
+        fail("G9", v)
     return fails
 
 
@@ -359,7 +392,8 @@ def run() -> int:
             print("  - %s  %s" % (guard, detail))
         return 1
     print("[76] PASS  G1 死档案引用 / G2 小节约束 / G3 发布边界 / G4 十条台账 / G5 编号唯一 / "
-          "G6 执行目录纯净 / G7 发布清单完整 / G8 状态性漂移 全绿（发布面 %d 文件）" % len(scope_files(texts)))
+          "G6 执行目录纯净 / G7 发布清单完整 / G8 状态性漂移 / G9 超时预算互引 "
+          "全绿（发布面 %d 文件）" % len(scope_files(texts)))
     return 0
 
 
@@ -555,6 +589,32 @@ def selftest() -> int:
         if not g67_ok:
             bad.append("G6/G7 反向对照未全绿（正控制=%s 负例=%s 列缺=%s 开发层=%s）"
                        % (ok_pos, ok_neg, ok_miss, ok_dev))
+
+    # G9 反向对照：合成临时目录（SKILL.md + scripts/70-verify.py），正反双向（审查 F-7）。
+    with tempfile.TemporaryDirectory() as tg:
+        groot = pathlib.Path(tg)
+        (groot / "scripts").mkdir()
+        (groot / "SKILL.md").write_text(
+            "## 判据基座\n\nrun 断言实际预算受引擎 verify_command 超时约束（默认 120s、例外通道 600s）。\n",
+            encoding="utf-8")
+        (groot / "scripts" / "70-verify.py").write_text(
+            "# 预算口径：run 断言实际预算受引擎 120s/600s 约束\n", encoding="utf-8")
+        g9_pos = not timeout_crossref_violations(groot)
+        (groot / "SKILL.md").write_text("## 判据基座\n\n不含口径字样。\n", encoding="utf-8")
+        g9_neg_skill = timeout_crossref_violations(groot)
+        (groot / "SKILL.md").write_text(
+            "## 判据基座\n\nrun 断言实际预算受引擎 verify_command 超时约束（默认 120s、例外通道 600s）。\n",
+            encoding="utf-8")
+        (groot / "scripts" / "70-verify.py").write_text("# 无口径字样\n", encoding="utf-8")
+        g9_neg_verify = timeout_crossref_violations(groot)
+        g9_ok = g9_pos and bool(g9_neg_skill) and bool(g9_neg_verify)
+        counters["control"] += 3        # 正控制 1 + 两侧负例（SKILL 缺字样 / 基座缺字样）
+        print("  G9 反向对照（临时目录）：正控制=%s SKILL 缺字样=%s 基座缺字样=%s  %s"
+              % (g9_pos, bool(g9_neg_skill), bool(g9_neg_verify),
+                 "OK" if g9_ok else "MISMATCH"))
+        if not g9_ok:
+            bad.append("G9 反向对照未全绿（正控制=%s SKILL 负例=%s 基座负例=%s）"
+                       % (g9_pos, bool(g9_neg_skill), bool(g9_neg_verify)))
 
     # 安装器自测纳入回归链（task-installer）：真实子进程跑 install.py --selftest
     # （双模式临时装配 + 清单断言 + 副本内 30/70 号冒烟 + cleanup 护栏）。
