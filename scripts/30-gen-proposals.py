@@ -108,6 +108,9 @@ def load_profile(path: Path, _depth: int = 0) -> dict:
     if not isinstance(p, dict):
         die("profile %s: top-level must be a mapping" % path)
     parent = p.pop("extends", None)
+    # F-4（2026-09-29 审查）：顶层档且无 extends = 模板/基类档。该标记供 build() 判定
+    # "未知依赖"是预期形态（依赖目标由领域子档补齐）还是真配错，最终不进任何生成物。
+    p["_is_template"] = parent is None and _depth == 0
     if parent:
         p = deep_merge(load_profile(path.parent / parent, _depth + 1), p)
     for key in ("id", "modules", "tasks"):
@@ -266,10 +269,20 @@ def build(profile: dict, project_override: dict | None = None) -> dict:
                 t["acceptance_criteria"].append(hint.format(**ctx))
 
     ids = {t["id"] for t in tasks}
-    for t in tasks:
-        for d in t["depends_on"]:
-            if d not in ids:
-                problems.append("%s: depends_on unknown task %s" % (t["id"], d))
+    unknown = [(t["id"], d) for t in tasks for d in t["depends_on"] if d not in ids]
+    if unknown and profile.get("_is_template"):
+        # F-4（2026-09-29 审查）：基类/模板档单独生成——其任务的 depends_on 指向仅在
+        # 领域子档中定义的任务（实测：task-back-matter → task-finalize-manuscript），
+        # 属 extends 机制的预期形态而非配错。给出定位诊断并整档拒绝（rc=2 用法错），
+        # 不再以 rc=1「depends_on unknown task」收场让使用者猜。_is_template 由
+        # load_profile 标注（顶层且无 extends），不进任何生成物。
+        sample_tid, sample_dep = unknown[0]
+        die("profile '%s' 是 extends 模板（基类）：其任务依赖仅在领域子档定义的任务"
+            "（如 %s → %s，共 %d 处未知依赖）。请改用领域子档生成（子档 extends 本档），"
+            "或对子档跑 --check / --regress 做整体核对"
+            % (profile["id"], sample_tid, sample_dep, len(unknown)))
+    for tid, d in unknown:
+        problems.append("%s: depends_on unknown task %s" % (tid, d))
 
     project = dict(profile.get("project", {}))
     if project_override:

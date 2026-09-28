@@ -456,6 +456,25 @@ def run_gen_cli_guards() -> int:
             cases.append(("%s 档生成期 0 问题（零回归）" % name, not b["problems"],
                           "problems=%s" % b["problems"][:2]))
 
+        # ==== 类 3b：基类模板档单独生成（F-4，2026-09-29 审查）====
+        # 基类的任务依赖仅在领域子档定义（task-back-matter → task-finalize-manuscript），
+        # 旧口径以 rc=1「depends_on unknown task」收场且不说明原因。新口径：die() 归
+        # rc=2 用法错，消息点明 extends 模板语义并指路领域子档；build() 在 emit 之前
+        # die，不落任何生成物。子档不受影响的反向对照即上方"生成期 0 问题"组。
+        base_prof = profiles / "00-base-empirical.yaml"
+        if base_prof.exists():
+            rbase = call("--profile", str(base_prof), "--out", str(base / "basetpl"))
+            cases.append(("基类单独生成 → rc=2（不再 rc=1 自检未过）",
+                          rbase.returncode == 2,
+                          "rc=%d out=%r" % (rbase.returncode, (rbase.stdout or "")[-110:])))
+            cases.append(("基类诊断消息含「extends 模板」与「领域子档」指引",
+                          "extends 模板" in (rbase.stdout + rbase.stderr)
+                          and "领域子档" in (rbase.stdout + rbase.stderr),
+                          "out=%r" % (rbase.stdout or "")[-160:]))
+            cases.append(("基类诊断不落任何生成物（先拒后写）",
+                          not (base / "basetpl").exists() or not any((base / "basetpl").rglob("*")),
+                          "rc=%d" % rbase.returncode))
+
         # ==== 夹具选取函数反向对照（合成 profiles 目录，不落盘真文件）====
         with tempfile.TemporaryDirectory() as tp:
             pdir = pathlib.Path(tp) / "profiles"
