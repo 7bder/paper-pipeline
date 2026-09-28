@@ -57,12 +57,6 @@
 - 论证: 改动点 scripts/30-gen-proposals.py:76-84：追加分支条件从「父子都有 inject」放宽为「子档有 inject 即与父档现有 inject（缺省空列表）合并」，即 parent_inject = list(parent_t.get('inject') or [])，其余字段仍整体覆盖。回归：00-base-empirical.yaml 的 task-back-matter 保持无 inject，域档 30-cs-ml.yaml 只写 inject，断言合并视图该任务含 inject 键、生成卡 AC 多出注入的政策行（现状实测：合并视图无 inject 键、task-back-matter.json 只有基类 3 条 AC，而同批 task-write-implementation.json 有 8 条含「域口径约束」3 处）。影响面：父档已有 inject 时行为不变，父档无 inject 时等价于子档 inject 全量落地；78 号同源守卫不受影响（其比对对象是 files/json_files 断言，不含 inject）。工作量约 3 行 + 1 例自测。临时规避已落档（30-cs-ml.yaml line 775-783 注释注明该覆盖当前不生效），不改生成器则须给基类每个可注入任务补 inject: [] 占位，扩散到四档，不推荐。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
-## 2026-09-29 70-verify require_keys 对非 dict 首元素裸崩冒充 FAIL 与子串假 PASS，需补防御与双向守卫（id: verify-require-keys-non-dict-guard）
-- status: pending
-- id: verify-require-keys-non-dict-guard
-- 论证: 出处 reports/00-REVIEW-2026-09-29.md §2 F-2（沙盒已实锤）。scripts/70-verify.py:197-199 的 require_keys 分支 `key not in data[0]` 未验证 data[0] 是 dict：产物 [1,2,3] 时 TypeError 裸 traceback、rc=1 冒充 FAIL（N-2 家族复发）；产物 ["doi is here",…] 时 in 走 str 子串语义判 rc=0 静默放行（N-3 同族 fail-open）。姊妹分支 require_keys_all（:200-204）有 isinstance 防御，唯独此分支漏了；75 号自测只覆盖顶层标量与 require_keys_all 变体。修法：data[0] 非 dict 时按 N-3 口径判 FAIL（消息点明首元素实际类型）或并入 shape_problems 形态档；75 号补双向守卫（int 首元素不得以 traceback 收场、str 首元素必 FAIL）+ 对照组（对象列表缺键仍 FAIL）。改判据基座后 75/78 全量回归必须绿。
-- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
-
 ## 2026-09-29 README 唯一正确姿势缺判据基座装配步骤，照走首个 done 必撞 E014/E037（id: readme-pipeline-install-step）
 - status: pending
 - id: readme-pipeline-install-step
