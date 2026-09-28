@@ -1101,6 +1101,49 @@
       "exempt_files": [],
       "verify_command": "python -X utf8 -B scripts/75-verify-selftest.py",
       "source": "idea:verify-require-keys-non-dict-guard"
+    },
+    {
+      "id": "task-selftest-check-engine-e2e",
+      "name": "75 号补 --check 正路引擎 validate 端到端守卫",
+      "brief": "scripts/75-verify-selftest.py:382-383 的「给了 --project 不被新守卫拦下」用例拿不存在的空目录当 project（注释自述不要求 rc=0），--check 正路（生成 → 引擎 validate）在自测中从未真正执行；引擎 2026-09-25 升 v1.5.0-1 后 master fragment 与引擎 schema 的兼容性无自动回归（最近人工验证停留在 CHANGELOG D-8/D-11）。本任务在 75 号新增端到端守卫段：以本仓为 --project 跑真实生成器 --check（check() 会 cwd=本仓执行 .orchd/__main__.py validate 合成 master），断言 PASS，并配坏 master 反向对照。出处：reports/00-REVIEW-2026-09-29.md §2 F-3（当日补测 5 档 errors=0，契约成立但回归网有洞）。",
+      "module": "mod-judgment",
+      "depends_on": [
+        "task-verify-require-keys-non-dict-guard"
+      ],
+      "estimated_hours": 2,
+      "difficulty": "medium",
+      "requires": [
+        "python"
+      ],
+      "acceptance_criteria": [
+        "75 号新增守卫段：至少对 materials-chemistry 与 clinical 两档执行 --check --project <本仓根>，断言 stdout 含 \"orchd validate -> PASS\" 且退出码为 0",
+        "反向对照：对含未知 depends_on 的坏 master 直接调引擎 validate，断言守卫路径能检出 valid:false（防断言空转假绿）",
+        "沙盒全部落在系统临时目录（--out 指向临时目录），对本仓发布面文件零写入",
+        "python -X utf8 -B scripts/75-verify-selftest.py 全量 PASS（退出码 0）"
+      ],
+      "files_to_read": [
+        {
+          "path": "reports/00-REVIEW-2026-09-29.md",
+          "priority": "must_read",
+          "hint": "§2 F-3：空目录用例位置与端到端空窗成因"
+        },
+        {
+          "path": "scripts/30-gen-proposals.py",
+          "priority": "must_read",
+          "hint": "check() :536-560 的 validate 调用形态与退出码口径"
+        },
+        {
+          "path": "scripts/75-verify-selftest.py",
+          "priority": "must_read",
+          "hint": "CLI 守卫段 :340-413 的 call/snippet 夹具写法与 :382-388 空目录用例"
+        }
+      ],
+      "files_to_edit": [
+        "scripts/75-verify-selftest.py"
+      ],
+      "exempt_files": [],
+      "verify_command": "python -X utf8 -B scripts/75-verify-selftest.py",
+      "source": "idea:selftest-check-engine-e2e"
     }
   ]
 }
