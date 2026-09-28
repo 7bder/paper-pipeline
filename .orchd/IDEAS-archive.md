@@ -37,3 +37,8 @@
 - 论证: 出处同报告 §2 F-4。python 30-gen-proposals.py --profile profiles/00-base-empirical.yaml → rc=1：task-back-matter depends_on unknown task task-finalize-manuscript——该依赖目标只在领域子档定义，基类实为 extends 模板但 build() 不区分模板档/完整档，报错不说明；75 号夹具选取刻意排除 00- 前缀，场景在自测面外，SKILL/README 亦未声明。修法二选一：①build() 检测「depends_on 指向的任务不在本档且档位无 extends 子角色」时报「基类是 extends 模板，请用领域子档生成」（归 rc=2 用法错而非 rc=1 自检未过）；②文档加一行说明。倾向①，配 75 号守卫（对基类单独跑断言消息含「extends 模板」且 rc=2）。
 - notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
 
+## 2026-09-29 引擎 verify 120s 硬上限与基座 run 断言 300s 超时互不引用，中间预算必撞 E014（id: verify-timeout-budget-crossref）
+- status: pending
+- id: verify-timeout-budget-crossref
+- 论证: 出处同报告 §2 F-7。verify_command 受引擎 _VERIFY_TIMEOUT=120s 硬上限（例外通道 amend --verify-timeout-seconds 上界 600s，见 .orchd/rules/verify.md），而 70-verify.py 的 run 断言超时 RUN_TIMEOUT=300s；任务配 120–300s 的 run 命令时默认预算下引擎先 E014，基座 300s 承诺不可达，两层文档无互相提示。修法：70-verify.py --schema 文案与 SKILL.md 协同契约各补一句「run 断言实际预算受引擎 verify_command 超时约束（默认 120s，例外通道 600s）」，76 号可加互引存在性守卫。
+- notes: 由 orchd idea propose 写入（idea-write-gate），待用户 confirm 升 pending 或 drop 丢弃。
