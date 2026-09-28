@@ -244,4 +244,14 @@
 - **task-static-provenance-reframe 的逐条对照归档**（该任务声明域不含 CHANGELOG，对照在此收口）：elsevier-numbered 6 处、md-single-source 3 处、lab-experimental-reporting 1 处——均为出处句式替换（"paper1 定稿"→"真实定稿验证/出处定稿实测"），8/9/7 条规则正文逐字未动；60 号 §3.4 去项目点名、保留防杜撰约束。
 - **守卫的靶子**：MANIFEST 删行/加不存在的路径、仓根新建执行目录、DEV_TIER 文件入清单、VERSION 被删或改坏形态——`python -X utf8 scripts/76-doc-refs-selftest.py` 必须 rc=1。
 
+## D-20 orchd flat 布局滞留缝隙的上游 issue 固化（2026-09-28，task-orchd-flat-deadlock-upstream-issue）
+
+- **决策**：把登记于 `.orchd/IDEAS.md` 的 `orchd-flat-claim-deadlock` 固化为可转交上游 orchd-core 的 issue 记录。结论是引擎问题、本仓不改引擎本体（`conventions.md` 第 6 节发布边界），故本条只承载 issue 文本与绕行口径。触发事件为一次真实滞留：任务进行中发现 elsevier 标题悬空路径需连带修改、而该文件不在声明域内，`retract` 后工作区滞留任务分支、`checkout` 被策略拒绝，最终经 `force-status` 重认领 + `amend` 受管往返闭环（全程 ledger 留痕）。
+- **缝隙 A · `retract` 不切回 default 分支**：`.orchd/orchd/onboard/control.py` 的 `retract()` 只做级联 `RETRACT` 事件、`unbind_task_wt` 与 `hook_uninstall`，无任何 checkout 回 default 的动作。flat（单工作树）布局下 retract 后工作树停在 `task/<id>`，与 `.orchd/rules/git.md` 的「claim 前提 = 处于 main 且工作区干净」直接冲突。受管切换原语 `managed_checkout_branch`（`.orchd/orchd/gitops/guard.py`）只服务 reviewer 认领与 `amend` 往返两处调用，`checkout_default_strict` 仅挂 done 链路（`.orchd/orchd/onboard/lifecycle/core.py`）。
+- **缝隙 B · 无受管「回 default」通道**：`orchd git` 代理（`.orchd/orchd/cli/commands/misc.py` 的 `_cmd_git`）仅放行只读透传与任务分支 `commit`，`checkout` 属红线写操作被结构化拒绝；命令面无独立「切回 default」子命令。滞留态下 agent 无合规出口，只能借助 `force-status` 控制面。
+- **缝隙 C · claim/amend 的 main 前置与 flat 降级口径不自洽**：E030 系列跨 worktree 守卫在 flat 布局下已全部降级 `not_applicable`（引擎已识别该布局的特殊性），但 claim 与 amend 的 default 分支前置（`.orchd/orchd/onboard/claim.py`、`.orchd/orchd/cli/commands/control.py` 的 default 守卫）未同步降级，两者口径不一致。
+- **影响面**：flat 布局下凡「任务中途需连带修改声明域外文件」的场景，补登只能走 `amend`（仅在 main 执行、任务分支被拒）⇒ 必须先 `retract` ⇒ 滞留 ⇒ 只能绕 `force-status` 重认领 + `amend` 受管往返，流程冗长且依赖控制面操作。
+- **上游修复建议（两条）**：① claim 时若 `task/<id>` 已存在且其提交尚未合并入 default，直接 `checkout` 该分支续作，而非要求分支 / worktree 不存在；② 为 `retract` 或独立命令提供**受管回 default 通道**（复用 `managed_checkout_branch`），或让 `orchd git` 代理对「切回 default」这一无害切换放行。
+- **守卫的靶子**：本条为纯文档记录，`python -X utf8 scripts/76-doc-refs-selftest.py` 退出码 0（编号唯一 G5 / 引用无悬空 G1/G2）。
+
 
