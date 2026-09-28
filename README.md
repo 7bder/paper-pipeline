@@ -26,7 +26,7 @@ orchd 这类任务引擎只给你一套状态机（claim → done → review）�
 | **返工地狱** | md 改一遍、tex 改一遍，两边分叉；投稿前才发现编号和文献表对不上 |
 
 paper-pipeline 把这些从真实论文项目中踩坑沉淀下来的打法做成可复用技能
-（各决策的项目出处统一记录在 [`CHANGELOG.md`](CHANGELOG.md) 的 D-1…D-17 条目）。
+（各决策的项目出处统一记录在 [`CHANGELOG.md`](CHANGELOG.md) 的设计决策条目，D-1 起连续编号）。
 它只做三件引擎不做的事：**领域知识**（`profiles/`）、**可机检的验收判据**（`scripts/`）、
 **踩过的坑**（`references/` + 决策记录）。
 
@@ -98,7 +98,7 @@ paper-pipeline/
 ├── SKILL.md                  技能入口（机器读：何时触发、阶段序、协同契约、硬约束）
 ├── README.md                 本文件（人读）
 ├── MANIFEST.in               发布面清单（单一真源；由发版流程维护）
-├── CHANGELOG.md              设计决策记录 D-1…D-17（为什么这么定，含引擎实测坑）
+├── CHANGELOG.md              设计决策记录 D-1…D-20（为什么这么定，含引擎实测坑）
 ├── profiles/                 领域档（四轴：论文类型×证据形态×出版社×语言/报告规范）
 │   ├── 00-base-empirical.yaml        通用基类：证据口径 + back-matter + P-1 资产规划
 │   ├── 10-materials-chemistry.yaml   材料/化工/涂层（源自真实项目 paper1，回归基线档，24 任务）
@@ -152,8 +152,8 @@ paper-pipeline/
 
 ## 安装与发布边界
 
-**发布面以 `MANIFEST.in` 为单一真源**：清单内 = 发布，清单外 = 开发层（待建：`task-release-manifest` 落地清单本体）。
-安装器 `install.py`（待建：归 `task-installer`）按清单装配，两种模式：
+**发布面以 `MANIFEST.in` 为单一真源**：清单内 = 发布，清单外 = 开发层（清单完整性由 76 号 G7 守卫机检）。
+安装器 `install.py` 按清单装配，两种模式：
 
 ```bash
 # skill 模式：整套发布面装进宿主的 agent 技能目录
@@ -165,7 +165,7 @@ python paper-pipeline/install.py <论文项目>/ --mode project --profile <profi
 > project 模式即上方[与 orchd 的接法](#与-orchd-的接法唯一正确姿势)第 2 步的装配动作，**不可跳过**。
 
 **开发层（不入发布面）**：`.orchd/`（开发编排引擎工作区）、`build/`（生成物沙盒）、
-`reports/`（审计档案）、`docs/`（引擎血统件，待出仓）、`scripts/76-doc-refs-selftest.py`
+`reports/`（审计档案）、`scripts/76-doc-refs-selftest.py`
 （本仓文档卫生自检——机检的是本仓自己的台账与引用，装出去无意义）。
 本目录**永不承载论文项目执行件**：试点与生成一律在独立项目目录进行，`build/` 只放生成物沙盒。
 
@@ -182,7 +182,7 @@ python paper-pipeline/install.py <论文项目>/ --mode project --profile <profi
 ## 当前状态
 
 **已完成**：生成器 + 判据基座 + 自测；真实项目回归与试点验证通过（paper1 回归、paper2 试点，见 `CHANGELOG.md`）；
-四种入口模式落地；五个领域档（材料/临床/社科/CS-ML/试点）；17 条设计决策沉淀。
+四种入口模式落地；五个领域档（材料/临床/社科/CS-ML/试点）；设计决策沉淀于 `CHANGELOG.md`。
 
 **待建能力**：统一登记在 [`SKILL.md`](SKILL.md) 的「能力注册表」中，带落地路径与状态（planned/available）；
 可用性以磁盘文件是否存在为准，建好即把状态改为 available，不在此重复维护。
@@ -192,4 +192,4 @@ python paper-pipeline/install.py <论文项目>/ --mode project --profile <profi
 ## 设计决策
 
 所有"为什么这么做"的来龙去脉（含 orchd 引擎实测出的 bug、迁移血的教训、全文获取路线取舍）
-都记录在 [`CHANGELOG.md`](CHANGELOG.md) 的 D-1…D-17 条目里——有疑问先查那里，不要凭印象重走老路。
+都记录在 [`CHANGELOG.md`](CHANGELOG.md) 的设计决策条目里——有疑问先查那里，不要凭印象重走老路。

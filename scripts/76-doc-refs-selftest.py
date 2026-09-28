@@ -54,6 +54,9 @@ SCOPE_REL = ("SKILL.md", "README.md", "CHANGELOG.md", ".gitignore", "MANIFEST.in
 N_IDS = tuple(range(1, 11))          # 09-26 审查报告的 N-1…N-10
 TASK_ID = re.compile(r"`?(task-[a-z0-9-]+)`?")
 H2_D = re.compile(r"^## (D-\d+)\b", re.M)
+# G8 状态性漂移（审查 F-6，2026-09-29）：D 区间声明上界过时 / 「待建：task-…」落地后未摘除。
+D_RANGE = re.compile(r"D-1…D-(\d+)")
+PENDING_NOTE = re.compile(r"待建[：:]\s*`?task-")
 H3_D = re.compile(r"^### (D-\d+) 续\b", re.M)
 REL_PATH = re.compile(r"(?<![\w/.-])((?:references|scripts|profiles)/[\w./*-]+\.md|"
                       r"(?:references|scripts|profiles)/[\w./*-]+\.(?:py|yaml|json))")
@@ -308,6 +311,21 @@ def check(texts: dict) -> list:
                     fail("G2", "%s:%d 引 %s，但该路径不在盘（同行亦无 planned/冻结/按需等声明词）"
                          % (rel, i, target))
 
+    # ---- G8 状态性漂移（审查 F-6）：区间过时 / 待建注记，G1 的死引用口径抓不到这两种 ----
+    readme = texts.get("README.md", "")
+    changelog_text = texts.get("CHANGELOG.md", "")
+    max_d = max((int(d.split("-")[1]) for d in H2_D.findall(changelog_text)), default=0)
+    if max_d:
+        for m in D_RANGE.finditer(readme):
+            hi = int(m.group(1))
+            if hi != max_d:
+                fail("G8", "README 的 D 区间上界 %d ≠ CHANGELOG 实际最大编号 %d"
+                     "（区间声明与决策记录脱节，曾漂 17 vs 20 达三轮未察觉）" % (hi, max_d))
+    for i, line in enumerate(readme.split("\n"), 1):
+        if PENDING_NOTE.search(line):
+            fail("G8", "README:%d 含「待建：task-…」注记——任务落地后应改述为事实，"
+                 "状态性表述过时（引用目标一直在盘，G1 不红）" % i)
+
     # ---- G6 执行目录纯净 + G7 发布清单完整 ---------------------------------
     for v in root_purity_violations(ROOT):
         fail("G6", v)
@@ -341,7 +359,7 @@ def run() -> int:
             print("  - %s  %s" % (guard, detail))
         return 1
     print("[76] PASS  G1 死档案引用 / G2 小节约束 / G3 发布边界 / G4 十条台账 / G5 编号唯一 / "
-          "G6 执行目录纯净 / G7 发布清单完整 全绿（发布面 %d 文件）" % len(scope_files(texts)))
+          "G6 执行目录纯净 / G7 发布清单完整 / G8 状态性漂移 全绿（发布面 %d 文件）" % len(scope_files(texts)))
     return 0
 
 
@@ -388,7 +406,8 @@ def _base_snapshot() -> dict:
             "references/20-claim-framework.md": "## 1. 范围\n\n### 2. 术语\n\n## 3. 证据强度门限\n\n## 4. 引用落位\n"}
     return dict({
         "SKILL.md": "# 技能本体\n\n见 `scripts/70-verify.py` 与 `CHANGELOG.md` D-13。\n",
-        "README.md": "# README\n\n发布边界见 `CHANGELOG.md` D-13；测试面 `scripts/75-verify-selftest.py`。\n",
+        "README.md": "# README\n\n发布边界见 `CHANGELOG.md` D-13；测试面 `scripts/75-verify-selftest.py`。\n"
+                     "设计决策记录 D-1…D-15（为什么这么定）。\n",
         "CHANGELOG.md": changelog,
         ".gitignore": gitignore,
         ".orchd/shared/conventions.md": "# 规范\n\n见 `CHANGELOG.md` D-13。\n",
@@ -447,6 +466,10 @@ def selftest() -> int:
             "# 引擎副本已出仓。\n")}), "G3")
     expect("G3-vendor 目录名复发", lambda s: s.update({
         ".gitignore": s[".gitignore"].replace("_pilot/", "_pilot/\n_paper-pipeline-pilot-vendor-20260926/\n")}), "G3")
+    expect("G8-区间上界落后：README 写 D-1…D-14 而实际最大 D-15", lambda s: s.update({
+        "README.md": s["README.md"].replace("D-1…D-15", "D-1…D-14")}), "G8")
+    expect("G8-待建注记复发：任务已落地仍写「待建：task-」", lambda s: s.update({
+        "README.md": s["README.md"] + "安装器（待建：`task-demo-x`）按清单装配。\n"}), "G8")
 
     def drop_n7(s):
         s["CHANGELOG.md"] = "\n".join(l for l in s["CHANGELOG.md"].split("\n") if not l.startswith("| N-7 "))
